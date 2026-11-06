@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/window_background" android:paddingStart="48dp" android:paddingEnd="48dp" android:paddingTop="24dp" android:paddingBottom="24dp">
+  <include layout="@layout/view_tv_brand_bar" />
+  <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+    <ScrollView android:id="@+id/receive_home" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="80dp" android:paddingEnd="80dp" android:paddingTop="24dp" android:paddingBottom="24dp">
+          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/tv_ready" android:textSize="14sp" android:textColor="@color/primary_text" android:id="@+id/receiver_status" android:tag="tv-accent" />
+          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textSize="44sp" android:textColor="@color/primary_text" android:id="@+id/local_endpoint_device_name" android:layout_marginTop="16dp" android:layout_marginBottom="12dp" android:fontFamily="sans-serif-light" android:maxLines="2" android:ellipsize="end" />
+          <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/tv_receiver_description" android:textSize="16sp" android:textColor="@color/primary_text" android:id="@+id/receiver_description" android:tag="tv-muted" />
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="24dp">
+            <Button android:id="@+id/select_content_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/tv_select_content" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-primary" />
+            <Button android:id="@+id/background_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/tv_background" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-outline" android:layout_marginStart="16dp" />
+            <Button android:id="@+id/open_transfer_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/transfer_center" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-outline" android:layout_marginStart="16dp" android:visibility="gone" />
+          </LinearLayout>
+          <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/item_border" android:layout_marginTop="12dp" android:layout_marginBottom="12dp" />
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/tv_save_location" android:textSize="14sp" android:textColor="@color/primary_text" android:tag="tv-muted" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:textSize="14sp" android:textColor="@color/primary_text" android:id="@+id/receiver_save_path" />
+          </LinearLayout>
+        </LinearLayout>
+      </LinearLayout>
+    </ScrollView>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:id="@+id/send_choices" android:visibility="gone" android:paddingTop="24dp">
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageButton android:id="@+id/send_back_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="?android:attr/homeAsUpIndicator" android:contentDescription="@string/navigate_up" android:tag="tv-icon" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/tv_send_content" android:textSize="26sp" android:textColor="@color/primary_text" android:layout_weight="1" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/tv_send_description" android:textSize="16sp" android:textColor="@color/primary_text" android:tag="tv-muted" android:layout_marginTop="16dp" android:layout_marginBottom="24dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <Button android:id="@+id/content_action_file" android:layout_width="0dp" android:layout_height="wrap_content" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/content_action_file" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-card" android:layout_weight="1" android:layout_marginEnd="12dp" android:drawableTop="@drawable/ic_description" android:drawablePadding="20dp" android:minHeight="144dp" />
+        <Button android:id="@+id/content_action_folder" android:layout_width="0dp" android:layout_height="wrap_content" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/content_action_folder" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-card" android:layout_weight="1" android:layout_marginEnd="12dp" android:drawableTop="@drawable/ic_folder" android:drawablePadding="20dp" android:minHeight="144dp" />
+        <Button android:id="@+id/content_action_clipboard" android:layout_width="0dp" android:layout_height="wrap_content" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/content_action_clipboard" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-card" android:layout_weight="1" android:layout_marginEnd="12dp" android:drawableTop="@drawable/ic_content_paste" android:drawablePadding="20dp" android:minHeight="144dp" />
+      </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:id="@+id/send_devices" android:visibility="gone" android:paddingTop="16dp">
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageButton android:id="@+id/devices_back_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="?android:attr/homeAsUpIndicator" android:contentDescription="@string/navigate_up" android:tag="tv-icon" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/choose_receiver" android:textSize="26sp" android:textColor="@color/primary_text" android:layout_weight="1" />
+      </LinearLayout>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/pending_send_bar" android:tag="tv-panel" android:layout_marginTop="16dp" android:padding="12dp">
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="" android:textSize="16sp" android:textColor="@color/primary_text" android:id="@+id/pending_send_summary" />
+        <Button android:id="@+id/change_content_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/tv_change_content" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-outline" />
+      </LinearLayout>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/nearby_devices" android:textSize="14sp" android:textColor="@color/primary_text" android:tag="tv-muted" />
+        <ImageButton android:id="@+id/refresh_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="@drawable/ic_refresh" android:contentDescription="@string/refresh_devices" android:tag="tv-icon" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/no_receivers_found" android:textSize="16sp" android:textColor="@color/primary_text" android:id="@+id/discovery_status" android:tag="tv-muted" android:gravity="center" android:padding="24dp" />
+      <androidx.recyclerview.widget.RecyclerView android:id="@+id/device_list" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:padding="4dp" />
+    </LinearLayout>
+  </FrameLayout>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/tv_same_network" android:textSize="12sp" android:textColor="@color/primary_text" android:tag="tv-muted" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:textSize="12sp" android:textColor="@color/primary_text" android:id="@+id/receiver_footer" android:tag="tv-muted" />
+  </LinearLayout>
+</LinearLayout>

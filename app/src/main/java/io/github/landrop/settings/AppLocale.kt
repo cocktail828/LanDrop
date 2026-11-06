@@ -1,0 +1,38 @@
+package io.github.landrop.settings
+
+import android.content.Context
+import android.content.res.Configuration
+import android.content.res.Resources
+import android.os.Build
+import androidx.annotation.StringRes
+import java.util.Locale
+
+object AppLocale {
+    const val SYSTEM = ""
+    const val CHINESE = "zh"
+    const val ENGLISH = "en"
+
+    /** Resolve background text against the current preference, even in a long-lived worker. */
+    fun text(context: Context, @StringRes resource: Int, vararg arguments: Any): String =
+        wrap(context).getString(resource, *arguments)
+
+    fun wrap(context: Context, language: String = AppSettings(context).language()): Context {
+        val locale = localeFor(language)
+        val configuration = Configuration(context.resources.configuration)
+        configuration.setLocale(locale)
+        return context.createConfigurationContext(configuration)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun localeFor(language: String): Locale {
+        val locale = if (language.isNotBlank()) {
+            Locale(language)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Resources.getSystem().configuration.locales[0]
+        } else {
+            Resources.getSystem().configuration.locale
+        }
+        // The fallback language also determines layout direction and date/number formatting.
+        return if (locale.language == CHINESE) Locale.CHINESE else Locale.ENGLISH
+    }
+}

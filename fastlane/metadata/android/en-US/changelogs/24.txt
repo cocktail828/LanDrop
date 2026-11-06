@@ -1,0 +1,2 @@
+First LanDrop version for Android TV: background receiving, boot startup, explicit file/text acceptance, nearby-device sending, transfer records, and essential settings.
+HTTP receiving, HTTP/HTTPS peer connections with mTLS and fingerprint checks, relative folder paths, and pending cancellation. Real-TV and default LocalSend interoperability validation are still required.

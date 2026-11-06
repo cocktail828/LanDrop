@@ -1,0 +1,28 @@
+LanDrop
+
+Copyright 2026 LanDrop contributors.
+
+This project is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the complete license text.
+
+Third-party components are distributed under their respective licenses:
+
+- OkHttp — Apache License 2.0
+- Gson — Apache License 2.0
+- NanoHTTPD — BSD 3-Clause License
+- AndroidX — Apache License 2.0
+
+Material Design vector icons
+Copyright 2014 Google Inc.
+Licensed under the Apache License, Version 2.0.
+Source: https://github.com/google/material-design-icons
+
+Historical attribution: LocalSend verification icon alphabet and conversion
+algorithm (removed with the obsolete verification screen; not bundled in
+the current implementation)
+Copyright LocalSend contributors.
+Licensed under the Apache License, Version 2.0.
+Source: https://github.com/localsend/localsend
+
+Refer to the respective component distributions for their complete license
+and notice texts.

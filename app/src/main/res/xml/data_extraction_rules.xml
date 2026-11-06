@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Backup configuration for Android 12 and later. -->
+<data-extraction-rules>
+    <cloud-backup />
+</data-extraction-rules>

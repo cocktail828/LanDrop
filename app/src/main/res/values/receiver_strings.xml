@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="receiver_stop">Stop background reception</string>
+    <string name="receiver_send_files">Send local files</string>
+    <string name="receiver_background_enabled">Keep receiver running in background</string>
+    <string name="receiver_boot_enabled">Start receiver after boot</string>
+    <string name="receiver_overlay_enabled">Show TV confirmation over other apps</string>
+    <string name="receiver_overlay_retry">Allow display over other apps, then return and enable this option again.</string>
+    <string name="receiver_overlay_unavailable">This system has no overlay permission settings. Use notifications to confirm reception.</string>
+    <string name="directory_picker_unavailable">No system folder picker is installed. The default Downloads location is still available.</string>
+    <string name="local_picker_scope">Only files already accessible to this app are shown. On Android 10+, other files require a system file picker or a previously authorized folder.</string>
+    <string name="local_picker_selected">Send selected files (%1$d)</string>
+    <string name="local_picker_downloads">Files received in Downloads</string>
+    <string name="local_picker_empty">No accessible files in this location</string>
+    <string name="local_picker_failed">Cannot read this folder. Check its storage permission.</string>
+    <string name="receiver_busy">Another transfer or receive request is active. Try again after it finishes.</string>
+    <string name="receiver_request_summary">%1$d files · %2$s</string>
+    <string name="receiver_saved">Files saved</string>
+    <string name="device_name_required">Device name cannot be empty</string>
+    <string name="device_name_saved">Device name saved</string>
+    <string name="choose_receiver">Choose receiving device</string>
+    <string name="no_receivers_found">No devices found. Check the local network and tap Refresh.</string>
+    <string name="confirm_device_name">Confirm</string>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_margin="4dp" android:background="@drawable/device_item_background" android:orientation="vertical" android:paddingStart="12dp" android:paddingTop="8dp" android:paddingEnd="12dp" android:paddingBottom="8dp" android:tag="tv-panel" android:padding="16dp" android:layout_marginTop="4dp" android:layout_marginBottom="8dp">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+      <TextView android:id="@+id/active_transfer_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:ellipsize="end" android:maxLines="1" android:textColor="@color/primary_text" android:textSize="18sp" />
+      <TextView android:id="@+id/active_transfer_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:textColor="@color/secondary_text" android:textSize="14sp" android:visibility="gone" />
+      <TextView android:id="@+id/active_transfer_progress_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/secondary_text" android:textSize="14sp" />
+      <ProgressBar android:id="@+id/active_transfer_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="4dp" android:max="100" android:progress="0" android:progressTint="@color/brand_primary" />
+    </LinearLayout>
+    <Button android:id="@+id/active_transfer_cancel" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/cancel_file" android:textAllCaps="false" android:tag="tv-outline" android:minHeight="48dp" />
+  </LinearLayout>
+</LinearLayout>

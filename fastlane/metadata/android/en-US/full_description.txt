@@ -1,0 +1,11 @@
+LanDrop is a lightweight, unofficial LocalSend client designed for Android TV. It is not affiliated with or endorsed by the official LocalSend project. Phones and computers running LocalSend can be peers; no separate phone UI is maintained.
+
+Open the app to see the device name, receiving state, and save location. Background reception and start-on-boot are enabled by default. Leaving the screen or swiping away the task does not stop an enabled receiver. Vendor restrictions, force-stop, and disconnected standby can still affect availability.
+
+Choose File, Folder, or Clipboard, then select a discovered nearby device to send. Incoming files and text require explicit acceptance. Accepted text can be copied manually. Progress, cancellation, results, and receive/send history are available. Settings include receiving, boot, TV overlay permission, language, device name, and save directory. There is no manual address, favorites, or device-verification screen.
+
+The interface uses a fixed blue accent, light/dark palettes, and visible D-pad focus. Default storage is Download/localsend, or a system-authorized directory. Android 9 and earlier require legacy storage permission; newer systems use MediaStore or authorized directories. Overlay prompts require explicit system authorization.
+
+Current compatibility limits: local receiving uses HTTP; outgoing connections support HTTP/HTTPS, with client-certificate authentication and certificate fingerprint checks for HTTPS. Relative folder paths are preserved. Default LocalSend interoperability on actual devices, storage-provider behavior, checksum retry handling, and cancellation edge cases still require validation. Both peers need a reachable LAN. This first version does not claim full protocol conformance, universal background availability, resumable transfer, browser-link receiving, or Android 4.x support. Minimum API is 21.
+
+Local container builds and unit tests do not replace testing on a real television. Preserve the Android version, device model, peer client versions, and reproduction steps when reporting problems.

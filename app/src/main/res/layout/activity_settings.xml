@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/window_background" android:paddingStart="64dp" android:paddingEnd="64dp" android:paddingTop="24dp" android:paddingBottom="24dp">
+  <include layout="@layout/view_tv_brand_bar" />
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <ImageButton android:id="@+id/settings_back_button" android:layout_width="48dp" android:layout_height="48dp" android:padding="12dp" android:src="?android:attr/homeAsUpIndicator" android:contentDescription="@string/navigate_up" android:tag="tv-icon" />
+    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/settings" android:textSize="26sp" android:textColor="@color/primary_text" android:layout_weight="1" />
+  </LinearLayout>
+  <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipToPadding="false" android:padding="4dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/settings_general_section" android:textSize="14sp" android:textColor="@color/primary_text" android:tag="tv-muted" android:layout_marginTop="20dp" />
+      <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/item_border" android:layout_marginTop="12dp" android:layout_marginBottom="12dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/receiver_background_row" android:tag="tv-row" android:minHeight="56dp" android:padding="8dp" android:focusable="true" android:clickable="true">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_background_receive" android:tint="@color/secondary_text" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="16dp" android:layout_height="wrap_content" android:text="@string/receiver_background_enabled" android:textSize="17sp" android:textColor="@color/primary_text" />
+        <Switch android:id="@+id/receiver_background_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:focusable="false" android:clickable="false" android:contentDescription="@string/receiver_background_enabled" />
+      </LinearLayout>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/receiver_boot_row" android:tag="tv-row" android:minHeight="56dp" android:padding="8dp" android:focusable="true" android:clickable="true">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_start_on_boot" android:tint="@color/secondary_text" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="16dp" android:layout_height="wrap_content" android:text="@string/receiver_boot_enabled" android:textSize="17sp" android:textColor="@color/primary_text" />
+        <Switch android:id="@+id/receiver_boot_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:focusable="false" android:clickable="false" android:contentDescription="@string/receiver_boot_enabled" />
+      </LinearLayout>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/receiver_overlay_row" android:tag="tv-row" android:minHeight="56dp" android:padding="8dp" android:focusable="true" android:clickable="true">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_desktop" android:tint="@color/secondary_text" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="16dp" android:layout_height="wrap_content" android:text="@string/receiver_overlay_enabled" android:textSize="17sp" android:textColor="@color/primary_text" />
+        <Switch android:id="@+id/receiver_overlay_switch" android:layout_width="wrap_content" android:layout_height="48dp" android:focusable="false" android:clickable="false" android:contentDescription="@string/receiver_overlay_enabled" />
+      </LinearLayout>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/language_row" android:tag="tv-row" android:minHeight="56dp" android:padding="8dp" android:focusable="true" android:clickable="true">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_language" android:tint="@color/secondary_text" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="16dp" android:layout_height="wrap_content" android:text="@string/settings_language" android:textSize="17sp" android:textColor="@color/primary_text" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:textSize="16sp" android:textColor="@color/primary_text" android:id="@+id/language_value" android:tag="tv-muted" android:maxLines="1" android:ellipsize="end" android:maxWidth="280dp" />
+      </LinearLayout>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/device_info_row" android:tag="tv-row" android:minHeight="56dp" android:padding="8dp" android:focusable="true" android:clickable="true">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_edit" android:tint="@color/secondary_text" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="16dp" android:layout_height="wrap_content" android:text="@string/settings_device_name" android:textSize="17sp" android:textColor="@color/primary_text" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:textSize="16sp" android:textColor="@color/primary_text" android:id="@+id/device_name_value" android:tag="tv-muted" android:maxLines="1" android:ellipsize="end" android:maxWidth="280dp" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/settings_receive_section" android:textSize="14sp" android:textColor="@color/primary_text" android:tag="tv-muted" android:layout_marginTop="20dp" />
+      <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/item_border" android:layout_marginTop="12dp" android:layout_marginBottom="12dp" />
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:id="@+id/receive_directory_row" android:tag="tv-row" android:minHeight="56dp" android:padding="8dp" android:focusable="true" android:clickable="true">
+        <ImageView android:layout_width="22dp" android:layout_height="22dp" android:src="@drawable/ic_folder" android:tint="@color/secondary_text" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="16dp" android:layout_height="wrap_content" android:text="@string/settings_receive_directory" android:textSize="17sp" android:textColor="@color/primary_text" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:textSize="16sp" android:textColor="@color/primary_text" android:id="@+id/receive_directory_value" android:tag="tv-muted" android:maxLines="1" android:ellipsize="end" android:maxWidth="280dp" />
+      </LinearLayout>
+      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/tv_name_hint" android:textSize="13sp" android:textColor="@color/primary_text" android:tag="tv-muted" android:layout_marginTop="16dp" />
+      <Button android:id="@+id/about_button" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:paddingStart="20dp" android:paddingEnd="20dp" android:text="@string/tv_about" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-outline" android:layout_marginTop="20dp" />
+    </LinearLayout>
+  </ScrollView>
+  <include layout="@layout/view_tv_status_footer" />
+</LinearLayout>

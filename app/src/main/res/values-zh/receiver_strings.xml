@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="receiver_stop">停止后台接收</string>
+    <string name="receiver_send_files">发送本地文件</string>
+    <string name="receiver_background_enabled">保持后台接收</string>
+    <string name="receiver_boot_enabled">开机自动启动接收服务</string>
+    <string name="receiver_overlay_enabled">在其他应用上方显示电视接收确认</string>
+    <string name="receiver_overlay_retry">请允许显示在其他应用上层，返回后再次开启此选项。</string>
+    <string name="receiver_overlay_unavailable">此系统没有悬浮窗授权入口，请通过通知确认接收。</string>
+    <string name="directory_picker_unavailable">系统未提供文件夹选择器，仍可使用默认下载目录。</string>
+    <string name="local_picker_scope">仅显示本应用已有权访问的文件。Android 10 及以上访问其他文件，需要系统文件选择器或先前授权的文件夹。</string>
+    <string name="local_picker_selected">发送已选文件（%1$d）</string>
+    <string name="local_picker_downloads">下载目录中接收的文件</string>
+    <string name="local_picker_empty">此位置没有可访问的文件</string>
+    <string name="local_picker_failed">无法读取此目录，请检查存储授权。</string>
+    <string name="receiver_busy">正在处理其他传输或接收请求，请完成后重试。</string>
+    <string name="receiver_request_summary">%1$d 个文件 · %2$s</string>
+    <string name="receiver_saved">文件已保存</string>
+    <string name="device_name_required">设备名不能为空</string>
+    <string name="device_name_saved">设备名已保存</string>
+    <string name="choose_receiver">选择接收设备</string>
+    <string name="no_receivers_found">暂未发现设备，请确认对方已开启接收并连接同一局域网，再点击刷新。</string>
+    <string name="confirm_device_name">确认</string>
+</resources>

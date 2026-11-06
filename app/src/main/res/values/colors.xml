@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_primary">#1976D2</color>
+    <color name="window_background">#F5F7FA</color>
+    <color name="dark_window_background">#12161E</color>
+    <color name="dark_surface">#1B212C</color>
+    <color name="dark_dialog_background">#1B212C</color>
+    <color name="dark_primary_text">#F2F5FA</color>
+    <color name="dark_secondary_text">#AAB6C8</color>
+    <color name="dark_item_border">#333D4C</color>
+    <color name="primary_text">#192434</color>
+    <color name="secondary_text">#566477</color>
+    <color name="item_border">#D5DCE6</color>
+    <color name="brand_primary_pressed">#125AA0</color>
+</resources>
