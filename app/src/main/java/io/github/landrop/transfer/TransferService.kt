@@ -361,30 +361,37 @@ class TransferService : Service(), DiscoveryListener {
                 cancellationRequested = false
                 hasActiveTransfer = hasActiveTransferEntries()
                 notifyListeners { it.onUploadCompleted(names) }
-                clearTransferNotification()
+                if (!hasActiveTransfer) clearTransferNotification()
             }
 
             override fun onError(message: String) {
+                finishUnsuccessfulUpload(message, if (cancellationRequested) ActiveTransferFile.Status.CANCELLED else ActiveTransferFile.Status.FAILED)
+            }
+
+            override fun onCancelled(message: String) {
+                finishUnsuccessfulUpload(message, ActiveTransferFile.Status.CANCELLED)
+            }
+
+            private fun finishUnsuccessfulUpload(message: String, terminalStatus: ActiveTransferFile.Status) {
                 outgoingScreenAwakeSessionId?.let(::endScreenAwakeSession)
                 outgoingScreenAwakeSessionId = null
-                val terminalStatus = if (cancellationRequested) ActiveTransferFile.Status.CANCELLED else ActiveTransferFile.Status.FAILED
                 finishOutgoingQueues(terminalStatus)
                 cancellationRequested = false
                 hasActiveTransfer = hasActiveTransferEntries()
                 resetProgressDispatch()
                 lastTransferMessage = message
-                lastTransferWasError = true
+                lastTransferWasError = terminalStatus == ActiveTransferFile.Status.FAILED
                 notifyListeners { it.onUploadError(message) }
-                clearTransferNotification()
+                if (!hasActiveTransfer) clearTransferNotification()
             }
         })
     }
 
     fun cancelCurrent(stopService: Boolean = false) {
+        resolveIncoming(false)
         if (stopService) {
             settings.setBackgroundReceiverEnabled(false)
             TransferServiceState.markRunning(false, this)
-            resolveIncoming(false)
             mainHandler.removeCallbacks(networkRestart)
             networkExecutor.execute { discoveryManager?.stop() }
         }
@@ -402,7 +409,7 @@ class TransferService : Service(), DiscoveryListener {
             uploadClient.cancelCurrent()
             // DiscoveryManager performs the peer cancellation synchronously
             // on this worker, before the local session is removed.
-            discoveryManager?.cancelIncomingTransfer()
+            discoveryManager?.cancelAllIncomingTransfers()
             mainHandler.post {
                 lastTransferMessage = text(R.string.upload_cancelled)
                 if (!stopService) {
@@ -422,6 +429,15 @@ class TransferService : Service(), DiscoveryListener {
     }
 
     fun cancelIncomingFile(sessionId: String, fileId: String): Boolean = discoveryManager?.cancelIncomingFile(sessionId, fileId) == true
+
+    fun cancelSession(sessionId: String, direction: ActiveTransferFile.Direction) {
+        cancellationExecutor.execute {
+            when (direction) {
+                ActiveTransferFile.Direction.OUTGOING -> uploadClient.cancelSession(sessionId)
+                ActiveTransferFile.Direction.INCOMING -> discoveryManager?.cancelIncomingSession(sessionId)
+            }
+        }
+    }
 
     override fun onDevicesChanged(devices: List<RemoteDevice>) {
         currentDevices = devices
@@ -444,7 +460,7 @@ class TransferService : Service(), DiscoveryListener {
     ) {
         if (serviceDestroyed || !settings.backgroundReceiverEnabled()) { decide(null); return }
         // Keep one decision owner regardless of which UI is currently visible.
-        if (pendingIncoming != null || hasActiveTransfer) { decide(null); return }
+        if (isBusy()) { decide(null); return }
         val pending = PendingIncoming(request, decide)
         pendingIncoming = pending
         mainHandler.postDelayed({ resolveIncoming(pending.id, false) }, IncomingTransferManager.DECISION_TIMEOUT_SECONDS * 1000)
@@ -531,7 +547,7 @@ class TransferService : Service(), DiscoveryListener {
             finishIncomingSession(sessionId, status)
             resetProgressDispatch()
             notifyListeners { it.onIncomingSessionCompleted(sessionId) }
-            if (!cancellationRequested) clearTransferNotification()
+            if (!cancellationRequested && !hasActiveTransfer) clearTransferNotification()
         }
     }
 
@@ -548,7 +564,7 @@ class TransferService : Service(), DiscoveryListener {
             finishIncomingSession(sessionId, ActiveTransferFile.Status.COMPLETED)
             resetProgressDispatch()
             notifyListeners { it.onIncomingSessionCompleted(sessionId) }
-            clearTransferNotification()
+            if (!hasActiveTransfer) clearTransferNotification()
             val location = settings.receiveDirectoryName() ?: text(R.string.settings_default_receive_directory)
             notificationManager().notify(RESULT_NOTIFICATION_ID,
                 NotificationCompat.Builder(this, CHANNEL_TRANSFER)

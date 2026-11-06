@@ -6,6 +6,6 @@
       <TextView android:id="@+id/transfer_session_summary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:textColor="@color/secondary_text" android:textSize="14sp" />
       <ProgressBar android:id="@+id/transfer_session_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="8dp" android:max="100" android:progress="0" android:visibility="gone" android:progressTint="@color/brand_primary" />
     </LinearLayout>
-    <Button android:id="@+id/transfer_session_cancel" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/cancel_transfer" android:textAllCaps="false" android:tag="tv-outline" android:minHeight="48dp" />
+    <Button android:id="@+id/transfer_session_cancel" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/stop_transfer" android:textAllCaps="false" android:tag="tv-outline" android:minHeight="48dp" />
   </LinearLayout>
 </LinearLayout>

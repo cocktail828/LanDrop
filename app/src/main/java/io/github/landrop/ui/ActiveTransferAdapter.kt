@@ -16,7 +16,7 @@ import io.github.landrop.model.isCancelled
 
 class ActiveTransferAdapter(
     private val onCancelFile: (String, String) -> Unit,
-    private val onCancelSession: (String) -> Unit
+    private val onCancelSession: (TransferSession) -> Unit
 ) : RecyclerView.Adapter<ActiveTransferAdapter.ViewHolder>() {
     private val rows = mutableListOf<Row>()
     private val checksumProgress = LinkedHashMap<String, ChecksumProgress>()
@@ -87,7 +87,7 @@ class ActiveTransferAdapter(
         private val preparationProgress: ProgressBar = itemView.findViewById(R.id.transfer_session_progress)
         private val cancel: Button = itemView.findViewById(R.id.transfer_session_cancel)
 
-        fun bind(session: TransferSession, checksumProgress: ChecksumProgress?, onCancelSession: (String) -> Unit) {
+        fun bind(session: TransferSession, checksumProgress: ChecksumProgress?, onCancelSession: (TransferSession) -> Unit) {
             val isPreparing = session.direction == ActiveTransferFile.Direction.OUTGOING && checksumProgress != null
             if (isPreparing) {
                 title.text = itemView.context.getString(R.string.transfer_checksum_progress, checksumProgress!!.current, checksumProgress.total)
@@ -112,8 +112,8 @@ class ActiveTransferAdapter(
                 it.status == ActiveTransferFile.Status.WAITING || it.status == ActiveTransferFile.Status.TRANSFERRING
             }
             cancel.visibility = if (canCancel) View.VISIBLE else View.GONE
-            cancel.setText(R.string.cancel_transfer)
-            cancel.setOnClickListener { onCancelSession(session.sessionId) }
+            cancel.setText(R.string.stop_transfer)
+            cancel.setOnClickListener { onCancelSession(session) }
         }
     }
 
@@ -148,7 +148,7 @@ class ActiveTransferAdapter(
             val canCancelThisFile = file.direction == ActiveTransferFile.Direction.INCOMING &&
                 (file.status == ActiveTransferFile.Status.WAITING || file.status == ActiveTransferFile.Status.TRANSFERRING)
             cancel.visibility = if (canCancelThisFile) View.VISIBLE else View.GONE
-            cancel.setText(R.string.cancel_file)
+            cancel.setText(R.string.stop_transfer_file)
             cancel.setOnClickListener { onCancelFile(file.sessionId, file.fileId) }
         }
     }

@@ -44,7 +44,9 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
     private val gson = Gson()
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val cancelExecutor: ExecutorService = Executors.newCachedThreadPool()
-    @Volatile private var activePrepareCall: okhttp3.Call? = null
+    private val activeLock = Any()
+    @Volatile private var activeCall: okhttp3.Call? = null
+    @Volatile private var activePreparationId: String? = null
     @Volatile private var activeSessionId: String? = null
     @Volatile private var activeDevice: RemoteDevice? = null
     @Volatile private var activeCancelFlag: AtomicBoolean? = null
@@ -55,11 +57,13 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
 
     fun send(uris: List<Uri>, device: RemoteDevice, messageText: String?, relativeNames: Map<Uri, String>, listener: Listener) {
         executor.execute {
+            val cancelled = AtomicBoolean(false)
             try {
                 require(uris.isNotEmpty()) { text(R.string.select_file_first) }
-                activeDevice = device
-                val cancelled = AtomicBoolean(false)
-                activeCancelFlag = cancelled
+                synchronized(activeLock) {
+                    activeDevice = device
+                    activeCancelFlag = cancelled
+                }
                 listener.onStatus(text(R.string.upload_preparing_files, uris.size))
                 val filesWithoutChecksums = uris.mapIndexed { index, uri ->
                     if (cancelled.get()) throw IOException(text(R.string.upload_cancelled))
@@ -68,6 +72,7 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
                     file.copy(id = UUID.randomUUID().toString(), fileName = relativeNames[uri]?.let { TransferPath.segments(it).joinToString("/") } ?: file.fileName)
                 }
                 val preparationSessionId = "preparing-${UUID.randomUUID()}"
+                synchronized(activeLock) { activePreparationId = preparationSessionId }
                 listener.onPreparationStarted(preparationSessionId, filesWithoutChecksums.map { it.toQueueFile() })
                 val files = if (settings.createChecksums()) {
                     filesWithoutChecksums.mapIndexed { index, file ->
@@ -82,6 +87,7 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
                 listener.onStatus(text(R.string.upload_requesting_receiver, device.alias))
                 val prepareResult = prepareWithPin(device, files, listener, cancelled)
                 if (prepareResult is PrepareResult.NoTransfer) {
+                    if (cancelled.get()) throw IOException(text(R.string.upload_cancelled))
                     // Message requests carry their content in the prepare-upload
                     // preview and are acknowledged with HTTP 204. No upload
                     // session or file body is created in that case.
@@ -90,7 +96,7 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
                 }
                 val prepared = (prepareResult as PrepareResult.Success).response
                 activeTransfers[prepared.sessionId] = cancelled
-                activeSessionId = prepared.sessionId
+                synchronized(activeLock) { activeSessionId = prepared.sessionId }
                 val acceptedFiles = files.filter { it.id in prepared.files }
                 if (acceptedFiles.isEmpty()) throw IllegalStateException(text(R.string.upload_not_accepted))
                 if (cancelled.get()) throw IOException(text(R.string.upload_cancelled))
@@ -112,37 +118,50 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
                 }
                 listener.onCompleted(acceptedFiles.map { it.fileName })
             } catch (exception: Exception) {
+                val wasCancelled = cancelled.get()
                 // Clean up the peer's remaining targets after a terminal upload failure.
                 if (activeSessionId != null) cancelCurrent()
-                activeCancelFlag = null
-                activeSessionId = null
-                activeDevice = null
-                listener.onError(uploadErrorResource(exception)?.let { text(it) }
+                if (wasCancelled) listener.onCancelled(text(R.string.upload_cancelled))
+                else listener.onError(uploadErrorResource(exception)?.let { text(it) }
                     ?: exception.message ?: text(R.string.upload_failed))
             } finally {
-                activePrepareCall = null
-                activeDevice = null
-                activeSessionId = null
-                activeCancelFlag = null
+                synchronized(activeLock) {
+                    activeSessionId?.let { activeTransfers.remove(it, cancelled) }
+                    activeCall = null
+                    activeDevice = null
+                    activeSessionId = null
+                    activePreparationId = null
+                    activeCancelFlag = null
+                }
             }
         }
     }
 
-    fun cancelCurrent() {
-        activeCancelFlag?.set(true)
-        activePrepareCall?.cancel()
-        val sessionId = activeSessionId
-        val device = activeDevice ?: return
-        if (sessionId != null) cancel(sessionId)
+    fun cancelCurrent() { cancelActive(null) }
+
+    /** A stale row/dialog must never cancel a different, subsequently started upload. */
+    fun cancelSession(sessionId: String): Boolean = cancelActive(sessionId)
+
+    private fun cancelActive(expectedId: String?): Boolean {
+        val target = synchronized(activeLock) {
+            if (expectedId != null && expectedId != activeSessionId && expectedId != activePreparationId) return false
+            val flag = activeCancelFlag ?: return false
+            val device = activeDevice ?: return false
+            flag.set(true)
+            CancellationTarget(device, activeSessionId, activeCall)
+        }
+        target.call?.cancel()
+        if (target.sessionId == null && target.call == null) return true
         cancelExecutor.execute {
             try {
-                val endpoint = url(device, LocalSendProtocol.CANCEL_PATH).newBuilder().apply {
-                    if (sessionId != null) addQueryParameter("sessionId", sessionId)
+                val endpoint = url(target.device, LocalSendProtocol.CANCEL_PATH).newBuilder().apply {
+                    target.sessionId?.let { addQueryParameter("sessionId", it) }
                 }.build()
                 val request = Request.Builder().url(endpoint).post(ByteArray(0).toRequestBody()).build()
-                client(device).newCall(request).execute().use { }
+                client(target.device).newCall(request).execute().use { }
             } catch (_: Exception) { /* The local cancellation flag remains effective offline. */ }
         }
+        return true
     }
 
     private fun prepareWithPin(
@@ -178,7 +197,7 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
             .post(gson.toJson(PrepareRequest(identity.deviceInfo(), files.associateBy { it.id })).toRequestBody(JSON))
             .build()
         val call = client(device).newCall(request)
-        activePrepareCall = call
+        synchronized(activeLock) { activeCall = call }
         if (cancelled.get()) call.cancel()
         try { call.execute().use { response ->
             if (response.code == 401) return PrepareResult.PinRequired
@@ -189,7 +208,7 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
                 gson.fromJson(response.body?.charStream(), PrepareResponse::class.java)
                     ?: throw IllegalStateException(text(R.string.upload_invalid_response))
             )
-        } } finally { activePrepareCall = null }
+        } } finally { synchronized(activeLock) { if (activeCall === call) activeCall = null } }
     }
 
     private fun awaitPin(device: RemoteDevice, attempt: Int, listener: Listener, cancelled: AtomicBoolean): String? {
@@ -218,11 +237,15 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
                 shouldCancel = { cancelled.get() }
             )
             val request = Request.Builder().url(uploadUrl).post(body).build()
-            client(device).newCall(request).execute().use { response ->
+            val call = client(device).newCall(request)
+            synchronized(activeLock) { activeCall = call }
+            if (cancelled.get()) call.cancel()
+            try { call.execute().use { response ->
                 if (response.code == 422 && attempt < 3 && !cancelled.get()) return@use
                 if (!response.isSuccessful) throw IllegalStateException(text(R.string.upload_http_failed, response.code))
+                if (cancelled.get()) throw IOException(text(R.string.upload_cancelled))
                 return
-            }
+            } } finally { synchronized(activeLock) { if (activeCall === call) activeCall = null } }
         }
     }
 
@@ -269,8 +292,10 @@ class UploadClient(context: Context, private val identity: LocalIdentity) {
         fun onFileCompleted(sessionId: String, fileId: String)
         fun onCompleted(names: List<String>)
         fun onError(message: String)
+        fun onCancelled(message: String) = onError(message)
     }
     data class QueueFile(val id: String, val fileName: String, val size: Long)
+    private data class CancellationTarget(val device: RemoteDevice, val sessionId: String?, val call: okhttp3.Call?)
     private data class PrepareRequest(val info: Any, val files: Map<String, FileInfo>)
     private data class PrepareResponse(val sessionId: String, val files: Map<String, String>)
     private sealed interface PrepareResult {

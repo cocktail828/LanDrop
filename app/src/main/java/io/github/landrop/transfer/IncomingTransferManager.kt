@@ -29,6 +29,8 @@ class IncomingTransferManager(
     private val settings = AppSettings(context)
     private val sessions = ConcurrentHashMap<String, Session>()
     private val pending = ConcurrentHashMap<String, PendingRequest>()
+    private val lifecycleLock = Any()
+    private var cancellationGeneration = 0L
     // Use the map keys as a set; ConcurrentHashMap.newKeySet() requires API 24.
     private val cancelledSessions = ConcurrentHashMap<String, Boolean>()
 
@@ -44,7 +46,10 @@ class IncomingTransferManager(
                 onPreparationCancelled(request)
             }
         }
-        pending[pendingId] = pendingRequest
+        val generation = synchronized(lifecycleLock) {
+            pending[pendingId] = pendingRequest
+            cancellationGeneration
+        }
         try {
             onTransferRequested(request) { options ->
                 if (decisionReceived.compareAndSet(false, true)) {
@@ -82,9 +87,18 @@ class IncomingTransferManager(
             targets.values.forEach { runCatching { fileStore.discard(it.destination) } }
             return null
         }
-        sessions[sessionId] = Session(targets, request.info, remoteAddress)
-        activeSessionId = sessionId
-        onSessionPrepared(sessionId, request)
+        val prepared = synchronized(lifecycleLock) {
+            if (generation != cancellationGeneration) false else {
+                sessions[sessionId] = Session(targets, request.info, remoteAddress)
+                activeSessionId = sessionId
+                onSessionPrepared(sessionId, request)
+                true
+            }
+        }
+        if (!prepared) {
+            targets.values.forEach { runCatching { fileStore.discard(it.destination) } }
+            return null
+        }
         return PrepareUploadResponse(sessionId, targets.mapValues { it.value.token })
     }
 
@@ -178,12 +192,16 @@ class IncomingTransferManager(
 
     fun cancel(sessionId: String) {
         cancelledSessions[sessionId] = true
-        sessions.remove(sessionId)?.files?.values?.filterNot { it.completed }?.forEach {
+        sessions.remove(sessionId)?.let { cancelTargets(sessionId, it) }
+        if (activeSessionId == sessionId) activeSessionId = null
+    }
+
+    private fun cancelTargets(sessionId: String, session: Session) {
+        session.files.values.filterNot { it.completed || it.cancelled }.forEach {
             it.cancelled = true
             fileStore.discard(it.destination)
             onFileReceiveCancelled(sessionId, it.file.id, it.file.fileName, true)
         }
-        if (activeSessionId == sessionId) activeSessionId = null
     }
 
     fun cancelFile(sessionId: String, fileId: String): Boolean {
@@ -202,16 +220,27 @@ class IncomingTransferManager(
 
     fun cancelCurrent(): Boolean {
         val sessionId = activeSessionId ?: return false
-        activeSessionId = null
-        if (cancelledSessions.putIfAbsent(sessionId, true) != null) return false
+        return cancelSession(sessionId)
+    }
+
+    fun cancelSession(sessionId: String): Boolean {
         val session = sessions.remove(sessionId) ?: return false
-        session.files.values.filterNot { it.completed }.forEach {
-            it.cancelled = true
-            fileStore.discard(it.destination)
-            onFileReceiveCancelled(sessionId, it.file.id, it.file.fileName, true)
-        }
+        cancelledSessions[sessionId] = true
+        if (activeSessionId == sessionId) activeSessionId = null
+        cancelTargets(sessionId, session)
         onTransferCancelRequested(session.info, session.remoteAddress, sessionId)
         return true
+    }
+
+    fun cancelAll(): Boolean {
+        val (waiting, active) = synchronized(lifecycleLock) {
+            cancellationGeneration++
+            pending.values.toList() to sessions.keys.toList()
+        }
+        waiting.forEach { it.cancel() }
+        var cancelled = waiting.isNotEmpty()
+        active.forEach { if (cancelSession(it)) cancelled = true }
+        return cancelled
     }
 
     private fun isSessionActive(sessionId: String, fileId: String, target: Target): Boolean =

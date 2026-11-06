@@ -541,7 +541,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
     }
 
     override fun onDevicesChanged(devices: List<RemoteDevice>) {
-        discoveredDevices = devices.filter { it.protocol == "http" }.toList()
+        discoveredDevices = devices.toList()
         deviceAdapter.submitDevices(discoveredDevices)
         statusText.visibility = if (discoveredDevices.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         statusText.setText(R.string.no_receivers_found)

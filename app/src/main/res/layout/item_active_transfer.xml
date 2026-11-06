@@ -7,6 +7,6 @@
       <TextView android:id="@+id/active_transfer_progress_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/secondary_text" android:textSize="14sp" />
       <ProgressBar android:id="@+id/active_transfer_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="4dp" android:max="100" android:progress="0" android:progressTint="@color/brand_primary" />
     </LinearLayout>
-    <Button android:id="@+id/active_transfer_cancel" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/cancel_file" android:textAllCaps="false" android:tag="tv-outline" android:minHeight="48dp" />
+    <Button android:id="@+id/active_transfer_cancel" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/stop_transfer_file" android:textAllCaps="false" android:tag="tv-outline" android:minHeight="48dp" />
   </LinearLayout>
 </LinearLayout>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="keep_transferring">继续传输</string>
+    <string name="stop_all_transfers">停止全部</string>
+    <string name="stop_transfer">停止此项</string>
+    <string name="stop_transfer_title">停止此项传输？</string>
+    <string name="stop_transfer_message">仅停止此项传输，其他传输和已完成的文件会保留。</string>
+    <string name="stop_transfer_file">停止文件</string>
+    <string name="stop_transfer_file_title">停止此文件？</string>
+    <string name="stop_transfer_file_message">停止传输“%1$s”？其他文件和传输会保留。</string>
+</resources>

@@ -215,6 +215,10 @@ class DiscoveryManager(
 
     fun cancelIncomingTransfer(): Boolean = incomingTransfers?.cancelCurrent() == true
 
+    fun cancelIncomingSession(sessionId: String): Boolean = incomingTransfers?.cancelSession(sessionId) == true
+
+    fun cancelAllIncomingTransfers(): Boolean = incomingTransfers?.cancelAll() == true
+
     fun cancelIncomingFile(sessionId: String, fileId: String): Boolean = incomingTransfers?.cancelFile(sessionId, fileId) == true
 
     private fun cancelRemoteTransfer(protocol: String, address: String, port: Int, fingerprint: String, sessionId: String) {

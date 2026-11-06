@@ -1,0 +1,10 @@
+<resources>
+    <string name="keep_transferring">Keep transferring</string>
+    <string name="stop_all_transfers">Stop all</string>
+    <string name="stop_transfer">Stop transfer</string>
+    <string name="stop_transfer_title">Stop this transfer?</string>
+    <string name="stop_transfer_message">Only this transfer will stop. Other transfers and completed files are kept.</string>
+    <string name="stop_transfer_file">Stop file</string>
+    <string name="stop_transfer_file_title">Stop this file?</string>
+    <string name="stop_transfer_file_message">Stop transferring “%1$s”? Other files and transfers are kept.</string>
+</resources>

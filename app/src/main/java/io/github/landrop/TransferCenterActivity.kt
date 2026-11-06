@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import io.github.landrop.model.ActiveTransferFile
 import io.github.landrop.model.ReceivedFile
 import io.github.landrop.model.RemoteDevice
+import io.github.landrop.model.TransferSession
 import io.github.landrop.transfer.IncomingReceiveOptions
 import io.github.landrop.transfer.IncomingTransferManager
 import io.github.landrop.transfer.TransferService
@@ -27,8 +28,8 @@ class TransferCenterActivity : LocalizedActivity(), TransferService.Listener {
     private lateinit var empty: TextView
     private val files = LinkedHashMap<String, ActiveTransferFile>()
     private val adapter = ActiveTransferAdapter(
-        onCancelFile = { sessionId, fileId -> transferService?.cancelIncomingFile(sessionId, fileId) },
-        onCancelSession = { confirmCancelSession() }
+        onCancelFile = ::confirmCancelFile,
+        onCancelSession = ::confirmCancelSession
     )
     private var transferService: TransferService? = null
     private var bound = false
@@ -52,6 +53,7 @@ class TransferCenterActivity : LocalizedActivity(), TransferService.Listener {
         ThemeColors.apply(this)
         empty = findViewById(R.id.transfer_center_empty)
         findViewById<android.view.View>(R.id.transfer_center_back_button).setOnClickListener { finish() }
+        findViewById<android.view.View>(R.id.transfer_center_cancel_all).setOnClickListener { confirmCancelAll() }
         findViewById<RecyclerView>(R.id.transfer_center_list).apply {
             layoutManager = LinearLayoutManager(this@TransferCenterActivity)
             adapter = this@TransferCenterActivity.adapter
@@ -93,10 +95,11 @@ class TransferCenterActivity : LocalizedActivity(), TransferService.Listener {
     ) {
         incomingDialog?.dismiss()
         incomingDialog = io.github.landrop.ui.IncomingDialogs.show(this, request, decide) { }
+        refresh()
     }
 
     private var incomingDialog: AlertDialog? = null
-    override fun onIncomingRequestResolved() { incomingDialog?.dismiss(); incomingDialog = null }
+    override fun onIncomingRequestResolved() { incomingDialog?.dismiss(); incomingDialog = null; refresh() }
 
     override fun onIncomingSessionPrepared(sessionId: String, request: IncomingTransferManager.PrepareUploadRequest) {
         request.files.forEach { (fileId, file) ->
@@ -201,6 +204,9 @@ class TransferCenterActivity : LocalizedActivity(), TransferService.Listener {
     }
 
     private fun refresh() {
+        val active = files.values.any(::isActive) || transferService?.isBusy() == true
+        findViewById<android.view.View>(R.id.transfer_center_cancel_all).visibility =
+            if (active) android.view.View.VISIBLE else android.view.View.GONE
         val latest = transferService?.latestTransferSessionId()
         val visibleFiles = files.values.filter { latest == null || it.sessionId == latest }
         adapter.submitFiles(visibleFiles)
@@ -233,15 +239,41 @@ class TransferCenterActivity : LocalizedActivity(), TransferService.Listener {
         }
     }
 
-    private fun confirmCancelSession() {
-        if (files.isEmpty()) return
-        AlertDialog.Builder(this)
-            .setTitle(R.string.cancel_all_transfers_title)
-            .setMessage(R.string.cancel_all_transfers_message)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.cancel_transfer) { _, _ -> transferService?.cancelCurrent() }
+    private fun isActive(file: ActiveTransferFile): Boolean =
+        file.status == ActiveTransferFile.Status.WAITING || file.status == ActiveTransferFile.Status.TRANSFERRING
+
+    private fun confirmCancelAll() {
+        if (files.values.none(::isActive) && transferService?.isBusy() != true) return
+        showStopConfirmation(R.string.cancel_all_transfers_title, getString(R.string.cancel_all_transfers_message),
+            R.string.stop_all_transfers) { transferService?.cancelCurrent() }
+    }
+
+    private fun confirmCancelSession(session: TransferSession) {
+        if (session.files.none(::isActive)) return
+        showStopConfirmation(R.string.stop_transfer_title, getString(R.string.stop_transfer_message),
+            R.string.stop_transfer) { transferService?.cancelSession(session.sessionId, session.direction) }
+    }
+
+    private fun confirmCancelFile(sessionId: String, fileId: String) {
+        val file = files.values.firstOrNull {
+            it.sessionId == sessionId && it.fileId == fileId && it.direction == ActiveTransferFile.Direction.INCOMING
+        } ?: return
+        if (!isActive(file)) return
+        showStopConfirmation(R.string.stop_transfer_file_title, getString(R.string.stop_transfer_file_message, file.fileName),
+            R.string.stop_transfer_file) { transferService?.cancelIncomingFile(sessionId, fileId) }
+    }
+
+    private fun showStopConfirmation(@androidx.annotation.StringRes title: Int, message: String,
+                                     @androidx.annotation.StringRes action: Int, stop: () -> Unit) {
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setNegativeButton(R.string.keep_transferring, null)
+            .setPositiveButton(action) { _, _ -> stop() }
             .create()
-            .also { it.show(); ThemeColors.apply(it) }
+        dialog.show()
+        ThemeColors.apply(dialog)
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus()
     }
 
 }

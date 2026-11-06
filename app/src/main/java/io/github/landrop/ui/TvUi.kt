@@ -64,6 +64,12 @@ object TvUi {
                 button.isAllCaps = false
                 button.textSize = 16f
                 apply(button)
+                // Replacing the platform button background also removes its inset padding.
+                button.setPaddingRelative(dp(context, 16), dp(context, 8), dp(context, 16), dp(context, 8))
+                (button.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
+                    params.marginStart = dp(context, 8)
+                    button.layoutParams = params
+                }
             }
         }
     }
