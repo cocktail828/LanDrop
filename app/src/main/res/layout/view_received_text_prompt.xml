@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:layout_marginTop="12dp" android:layout_marginBottom="12dp"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:padding="16dp" android:minHeight="72dp" android:tag="tv-panel">
+    <ImageView android:layout_width="40dp" android:layout_height="40dp"
+        android:src="@drawable/ic_content_paste" android:tint="@color/secondary_text" android:contentDescription="@null" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginStart="16dp" android:orientation="vertical">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/tv_text_received" android:textSize="18sp" android:textStyle="bold" android:textColor="@color/primary_text" />
+        <TextView android:id="@+id/received_text_preview" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:maxLines="2" android:ellipsize="end"
+            android:textSize="16sp" android:textColor="@color/secondary_text" />
+    </LinearLayout>
+    <Button android:id="@+id/received_text_copy" android:layout_width="wrap_content" android:layout_height="48dp"
+        android:layout_marginStart="16dp" android:paddingStart="20dp" android:paddingEnd="20dp"
+        android:text="@string/copy_received_text" android:textSize="18sp" android:textAllCaps="false" android:tag="tv-outline" />
+</LinearLayout>

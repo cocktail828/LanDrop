@@ -14,4 +14,9 @@ data class ReceiveHistoryEntry(
     val isMessage: Boolean = false,
     val outgoing: Boolean = false,
     val result: String = "saved"
-)
+) {
+    val receivedFile: ReceivedFile?
+        get() = if (!outgoing && !isMessage && result == "saved" && uri.toString().isNotBlank()) {
+            ReceivedFile(displayName, uri, mimeType, size)
+        } else null
+}

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+  <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@mipmap/ic_launcher" android:importantForAccessibility="no" />
+    <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/app_name" android:textSize="20sp" android:textColor="@color/primary_text" android:layout_marginStart="12dp" android:fontFamily="sans-serif-medium" />
+    <Button android:id="@+id/history_button" android:layout_width="wrap_content" android:layout_height="48dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:drawableStart="@drawable/ic_history" android:drawablePadding="10dp" android:text="@string/history" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-outline" />
+    <Button android:id="@+id/settings_button" android:layout_width="wrap_content" android:layout_height="48dp" android:paddingStart="12dp" android:paddingEnd="12dp" android:drawableStart="@drawable/ic_settings" android:drawablePadding="10dp" android:text="@string/settings" android:textAllCaps="false" android:textSize="16sp" android:tag="tv-outline" />
+  </LinearLayout>

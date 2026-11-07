@@ -23,7 +23,9 @@ class IncomingTransferManager(
     private val onFileReceiveCancelled: (String, String, String, Boolean) -> Unit,
     private val onFileReceived: (String, String, ReceivedFile, Boolean) -> Unit,
     private val onPreparationCancelled: (PrepareUploadRequest) -> Unit = {},
-    private val onFileReceiveFailed: (String, String, String, Boolean) -> Unit = onFileReceiveCancelled
+    private val onFileReceiveFailed: (String, String, String, Boolean) -> Unit = onFileReceiveCancelled,
+    private val decisionTimeoutMillis: Long = DECISION_TIMEOUT_SECONDS * 1000,
+    private val replaceUnstartedSessionsOnRetry: Boolean = false
 ) {
     private val fileStore = IncomingFileStore(context)
     private val settings = AppSettings(context)
@@ -35,15 +37,20 @@ class IncomingTransferManager(
     private val cancelledSessions = ConcurrentHashMap<String, Boolean>()
 
     fun prepare(request: PrepareUploadRequest, remoteAddress: String): PrepareUploadResponse? {
+        if (replaceUnstartedSessionsOnRetry) retireUnstartedSessions(request.info, remoteAddress)
         val decisionLatch = CountDownLatch(1)
         val decisionReceived = AtomicBoolean(false)
+        val cancellationNotified = AtomicBoolean(false)
+        fun notifyPreparationCancelled() {
+            if (cancellationNotified.compareAndSet(false, true)) onPreparationCancelled(request)
+        }
         val optionsReference = AtomicReference<IncomingReceiveOptions?>(null)
         val pendingId = UUID.randomUUID().toString()
         val pendingRequest = PendingRequest(request, remoteAddress) {
             if (decisionReceived.compareAndSet(false, true)) {
                 optionsReference.set(null)
                 decisionLatch.countDown()
-                onPreparationCancelled(request)
+                notifyPreparationCancelled()
             }
         }
         val generation = synchronized(lifecycleLock) {
@@ -57,10 +64,20 @@ class IncomingTransferManager(
                     decisionLatch.countDown()
                 }
             }
-            if (!decisionLatch.await(DECISION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            if (!decisionLatch.await(decisionTimeoutMillis, TimeUnit.MILLISECONDS)) {
                 decisionReceived.set(true)
+                notifyPreparationCancelled()
                 return null
             }
+        } catch (_: InterruptedException) {
+            decisionReceived.set(true)
+            notifyPreparationCancelled()
+            Thread.currentThread().interrupt()
+            return null
+        } catch (exception: Exception) {
+            decisionReceived.set(true)
+            notifyPreparationCancelled()
+            throw exception
         } finally {
             pending.remove(pendingId)
         }
@@ -114,9 +131,30 @@ class IncomingTransferManager(
         val target = session?.files?.get(fileId)
             ?: return if (cancelledSessions.remove(sessionId) == true) WriteResult.CANCELLED else WriteResult.REJECTED
         return synchronized(target) {
-            if (!isSessionActive(sessionId, fileId, target) || target.completed || target.cancelled) WriteResult.REJECTED
+            val canStart = synchronized(lifecycleLock) {
+                if (!isSessionActive(sessionId, fileId, target) || target.completed || target.cancelled ||
+                    target.token != token || (contentLength != null && contentLength != target.file.size)) false
+                else { target.started = true; true }
+            }
+            if (!canStart) WriteResult.REJECTED
             else writeTarget(sessionId, fileId, token, input, contentLength, isChunked, target)
         }
+    }
+
+    /** A fresh attempt from the same peer supersedes an accepted offer with no upload yet. */
+    private fun retireUnstartedSessions(info: DeviceInfo, remoteAddress: String) {
+        val retired = synchronized(lifecycleLock) {
+            sessions.entries.mapNotNull { (id, session) ->
+                if (session.remoteAddress != remoteAddress || session.info.fingerprint != info.fingerprint ||
+                    session.files.values.any { it.started } || !sessions.remove(id, session)) null
+                else {
+                    cancelledSessions[id] = true
+                    if (activeSessionId == id) activeSessionId = null
+                    id to session
+                }
+            }
+        }
+        retired.forEach { (id, session) -> cancelTargets(id, session) }
     }
 
     private fun writeTarget(sessionId: String, fileId: String, token: String, input: InputStream,
@@ -275,7 +313,7 @@ class IncomingTransferManager(
     @Volatile private var activeSessionId: String? = null
     private data class PendingRequest(val request: PrepareUploadRequest, val remoteAddress: String, val cancel: () -> Unit)
     private data class Session(val files: Map<String, Target>, val info: DeviceInfo, val remoteAddress: String)
-    private data class Target(val token: String, val file: IncomingFile, val destination: IncomingFileStore.Destination, var completed: Boolean = false, @Volatile var cancelled: Boolean = false, var checksumFailures: Int = 0)
+    private data class Target(val token: String, val file: IncomingFile, val destination: IncomingFileStore.Destination, var completed: Boolean = false, @Volatile var cancelled: Boolean = false, var checksumFailures: Int = 0, var started: Boolean = false)
     companion object {
         private const val BUFFER_SIZE = 32 * 1024
         const val DECISION_TIMEOUT_SECONDS = 60L

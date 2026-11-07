@@ -37,7 +37,7 @@ class LocaleResourcesTest {
         val strings = resources("values")
         assertEquals("Settings", strings["string/settings"])
         assertEquals("File transfers", strings["string/notification_channel_transfer"])
-        assertEquals("Select content to send", strings["string/tv_select_content"])
+        assertEquals("Send content", strings["string/tv_send_content"])
     }
 
     @Test
@@ -47,7 +47,7 @@ class LocaleResourcesTest {
         assertEquals(defaults.keys, chinese.keys)
         assertEquals("设置", chinese["string/settings"])
         assertEquals("文件传输", chinese["string/notification_channel_transfer"])
-        assertEquals("选择内容发送", chinese["string/tv_select_content"])
+        assertEquals("发送内容", chinese["string/tv_send_content"])
     }
 
     private fun resources(directory: String): Map<String, String> {

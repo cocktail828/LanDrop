@@ -31,8 +31,10 @@ class HistoryMigrationInstrumentedTest {
             try {
                 assertTrue(entry.outgoing)
                 assertEquals("sent", entry.result)
-                androidx.test.core.app.ActivityScenario.launch(io.github.landrop.ReceiveHistoryActivity::class.java).use {
+                androidx.test.core.app.ActivityScenario.launch(io.github.landrop.TransferHistoryActivity::class.java).use {
                     androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withText(name))
+                        .perform(androidx.test.espresso.action.ViewActions.click())
+                    androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withText(io.github.landrop.R.string.file_details))
                         .perform(androidx.test.espresso.action.ViewActions.click())
                     androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withId(io.github.landrop.R.id.file_info_path))
                         .check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.withText("—")))

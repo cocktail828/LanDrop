@@ -1,0 +1,13 @@
+<resources>
+    <string name="history_recent_received">Recently received</string>
+    <string name="history_recent_sent">Recently sent</string>
+    <string name="history_receiving">Receiving</string>
+    <string name="history_sending">Sending</string>
+    <string name="history_received">Received</string>
+    <string name="history_waiting">Waiting</string>
+    <string name="history_entry_metadata">%1$s · %2$s · %3$s</string>
+    <string name="history_from_peer">From %1$s</string>
+    <string name="history_to_peer">To %1$s</string>
+    <string name="history_progress_speed">%1$s · %2$s/s</string>
+    <string name="copy_received_text">Copy</string>
+</resources>

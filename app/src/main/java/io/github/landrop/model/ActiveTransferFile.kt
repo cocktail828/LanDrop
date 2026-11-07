@@ -8,7 +8,10 @@ data class ActiveTransferFile(
     val receivedBytes: Long,
     val totalBytes: Long,
     val status: Status,
-    val direction: Direction = Direction.INCOMING
+    val direction: Direction = Direction.INCOMING,
+    val receivedFile: ReceivedFile? = null,
+    val fileDeleted: Boolean = false,
+    val peerAlias: String? = null
 ) {
     enum class Status { WAITING, TRANSFERRING, COMPLETED, CANCELLED, FAILED }
     enum class Direction { INCOMING, OUTGOING }

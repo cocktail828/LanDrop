@@ -3,7 +3,6 @@ package io.github.landrop.ui
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
@@ -15,11 +14,12 @@ import io.github.landrop.model.groupTransferSessions
 import io.github.landrop.model.isCancelled
 
 class ActiveTransferAdapter(
-    private val onCancelFile: (String, String) -> Unit,
-    private val onCancelSession: (TransferSession) -> Unit
+    private val onFileClick: (ActiveTransferFile) -> Unit,
+    private val onSessionClick: (TransferSession) -> Unit
 ) : RecyclerView.Adapter<ActiveTransferAdapter.ViewHolder>() {
     private val rows = mutableListOf<Row>()
     private val checksumProgress = LinkedHashMap<String, ChecksumProgress>()
+    private val speedSamples = LinkedHashMap<String, SpeedSample>()
 
     fun setChecksumProgress(sessionId: String, current: Int, total: Int) {
         checksumProgress[sessionId] = ChecksumProgress(current, total)
@@ -35,6 +35,18 @@ class ActiveTransferAdapter(
     }
 
     fun submitFiles(newFiles: List<ActiveTransferFile>) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val keys = newFiles.map { "${it.direction}:${it.sessionId}:${it.fileId}" }.toSet()
+        speedSamples.keys.retainAll(keys)
+        newFiles.forEach { file ->
+            val key = "${file.direction}:${file.sessionId}:${file.fileId}"
+            val previous = speedSamples[key]
+            if (previous == null || previous.bytes != file.receivedBytes) {
+                val speed = if (previous != null && now > previous.at && file.receivedBytes >= previous.bytes)
+                    (file.receivedBytes - previous.bytes) * 1000 / (now - previous.at) else 0L
+                speedSamples[key] = SpeedSample(file.receivedBytes, now, speed)
+            }
+        }
         val oldRows = rows.toList()
         val newRows = groupTransferSessions(newFiles).flatMap { session ->
             listOf(Row.Header(session)) + session.files.map { Row.File(it) }
@@ -59,8 +71,9 @@ class ActiveTransferAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         when (val row = rows[position]) {
-            is Row.Header -> (holder as HeaderViewHolder).bind(row.session, checksumProgress[row.session.sessionId], onCancelSession)
-            is Row.File -> (holder as FileViewHolder).bind(row.file, onCancelFile)
+            is Row.Header -> (holder as HeaderViewHolder).bind(row.session, checksumProgress[row.session.sessionId], onSessionClick)
+            is Row.File -> (holder as FileViewHolder).bind(row.file,
+                speedSamples["${row.file.direction}:${row.file.sessionId}:${row.file.fileId}"]?.speed ?: 0L, onFileClick)
         }
     }
 
@@ -85,18 +98,21 @@ class ActiveTransferAdapter(
         private val title: TextView = itemView.findViewById(R.id.transfer_session_title)
         private val summary: TextView = itemView.findViewById(R.id.transfer_session_summary)
         private val preparationProgress: ProgressBar = itemView.findViewById(R.id.transfer_session_progress)
-        private val cancel: Button = itemView.findViewById(R.id.transfer_session_cancel)
 
-        fun bind(session: TransferSession, checksumProgress: ChecksumProgress?, onCancelSession: (TransferSession) -> Unit) {
+        fun bind(session: TransferSession, checksumProgress: ChecksumProgress?, onSessionClick: (TransferSession) -> Unit) {
             val isPreparing = session.direction == ActiveTransferFile.Direction.OUTGOING && checksumProgress != null
             if (isPreparing) {
                 title.text = itemView.context.getString(R.string.transfer_checksum_progress, checksumProgress!!.current, checksumProgress.total)
             } else {
-                title.setText(if (session.direction == ActiveTransferFile.Direction.OUTGOING) R.string.transfer_session_sending else R.string.transfer_session_receiving)
+                title.setText(if (session.direction == ActiveTransferFile.Direction.OUTGOING) R.string.history_sending else R.string.history_receiving)
             }
             val total = session.files.sumOf { it.totalBytes }
             val transferred = session.files.sumOf { it.receivedBytes.coerceAtLeast(0L) }
-            summary.text = if (session.isCancelled()) {
+            val peer = session.files.firstOrNull()?.peerAlias
+            summary.text = if (!peer.isNullOrBlank()) {
+                itemView.context.getString(if (session.direction == ActiveTransferFile.Direction.OUTGOING)
+                    R.string.history_to_peer else R.string.history_from_peer, peer)
+            } else if (session.isCancelled()) {
                 itemView.context.getString(R.string.transfer_cancelled)
             } else if (session.files.all { it.totalBytes >= 0L }) {
                 itemView.context.getString(R.string.transfer_session_summary, session.files.size, formatBytes(transferred), formatBytes(total))
@@ -111,31 +127,41 @@ class ActiveTransferAdapter(
             val canCancel = session.files.any {
                 it.status == ActiveTransferFile.Status.WAITING || it.status == ActiveTransferFile.Status.TRANSFERRING
             }
-            cancel.visibility = if (canCancel) View.VISIBLE else View.GONE
-            cancel.setText(R.string.stop_transfer)
-            cancel.setOnClickListener { onCancelSession(session) }
+            itemView.setOnClickListener(if (canCancel) View.OnClickListener { onSessionClick(session) } else null)
+            itemView.isFocusable = canCancel
+            itemView.isClickable = canCancel
+            itemView.background = TvUi.focusBackground(itemView.context)
         }
     }
 
     data class ChecksumProgress(val current: Int, val total: Int)
+    private data class SpeedSample(val bytes: Long, val at: Long, val speed: Long)
 
     class FileViewHolder(itemView: View) : ViewHolder(itemView) {
         private val name: TextView = itemView.findViewById(R.id.active_transfer_name)
         private val status: TextView = itemView.findViewById(R.id.active_transfer_status)
         private val progressLabel: TextView = itemView.findViewById(R.id.active_transfer_progress_label)
         private val progress: ProgressBar = itemView.findViewById(R.id.active_transfer_progress)
-        private val cancel: Button = itemView.findViewById(R.id.active_transfer_cancel)
+        private val percent: TextView = itemView.findViewById(R.id.active_transfer_percent)
 
-        fun bind(file: ActiveTransferFile, onCancelFile: (String, String) -> Unit) {
+        fun bind(file: ActiveTransferFile, speed: Long, onFileClick: (ActiveTransferFile) -> Unit) {
             name.text = file.fileName
             status.text = when (file.status) {
-                ActiveTransferFile.Status.COMPLETED -> itemView.context.getString(if (file.direction == ActiveTransferFile.Direction.OUTGOING) R.string.transfer_sent else R.string.transfer_completed)
+                ActiveTransferFile.Status.COMPLETED -> itemView.context.getString(when {
+                    file.fileDeleted -> R.string.file_deleted
+                    file.direction == ActiveTransferFile.Direction.OUTGOING -> R.string.transfer_sent
+                    else -> R.string.transfer_completed
+                })
                 ActiveTransferFile.Status.CANCELLED -> ""
                 ActiveTransferFile.Status.FAILED -> ""
                 ActiveTransferFile.Status.WAITING, ActiveTransferFile.Status.TRANSFERRING -> ""
             }
             status.visibility = if (file.status == ActiveTransferFile.Status.WAITING || file.status == ActiveTransferFile.Status.TRANSFERRING || file.status == ActiveTransferFile.Status.FAILED || file.status == ActiveTransferFile.Status.CANCELLED) View.GONE else View.VISIBLE
             progress.progress = if (file.totalBytes > 0) ((file.receivedBytes * 100L) / file.totalBytes).toInt().coerceIn(0, 100) else 0
+            percent.text = if (file.status == ActiveTransferFile.Status.WAITING) itemView.context.getString(R.string.history_waiting)
+                else java.text.NumberFormat.getPercentInstance().format(if (file.status == ActiveTransferFile.Status.COMPLETED) 1.0 else progress.progress / 100.0)
+            percent.visibility = if (file.totalBytes < 0 || file.status == ActiveTransferFile.Status.CANCELLED || file.status == ActiveTransferFile.Status.FAILED) View.GONE else View.VISIBLE
+            progress.visibility = if (file.status == ActiveTransferFile.Status.WAITING || file.status == ActiveTransferFile.Status.TRANSFERRING) View.VISIBLE else View.GONE
             progressLabel.text = if (file.status == ActiveTransferFile.Status.FAILED) {
                 itemView.context.getString(R.string.transfer_failed)
             } else if (file.status == ActiveTransferFile.Status.CANCELLED) {
@@ -145,11 +171,17 @@ class ActiveTransferAdapter(
             } else {
                 itemView.context.getString(R.string.transfer_progress_bytes_unknown, formatBytes(file.receivedBytes.coerceAtLeast(0L)))
             }
-            val canCancelThisFile = file.direction == ActiveTransferFile.Direction.INCOMING &&
-                (file.status == ActiveTransferFile.Status.WAITING || file.status == ActiveTransferFile.Status.TRANSFERRING)
-            cancel.visibility = if (canCancelThisFile) View.VISIBLE else View.GONE
-            cancel.setText(R.string.stop_transfer_file)
-            cancel.setOnClickListener { onCancelFile(file.sessionId, file.fileId) }
+            if (file.status == ActiveTransferFile.Status.TRANSFERRING && speed > 0L) {
+                progressLabel.text = itemView.context.getString(R.string.history_progress_speed, progressLabel.text, formatBytes(speed))
+            }
+            val canAct = file.status == ActiveTransferFile.Status.WAITING ||
+                file.status == ActiveTransferFile.Status.TRANSFERRING ||
+                (file.direction == ActiveTransferFile.Direction.INCOMING &&
+                    file.status == ActiveTransferFile.Status.COMPLETED && file.receivedFile != null && !file.fileDeleted)
+            itemView.setOnClickListener(if (canAct) View.OnClickListener { onFileClick(file) } else null)
+            itemView.isFocusable = canAct
+            itemView.isClickable = canAct
+            itemView.background = TvUi.focusBackground(itemView.context, panel = true)
         }
     }
 

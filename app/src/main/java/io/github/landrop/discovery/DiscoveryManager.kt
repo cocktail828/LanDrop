@@ -152,7 +152,8 @@ class DiscoveryManager(
                 },
                 onFileReceiveFailed = { sessionId, fileId, fileName, complete ->
                     mainHandler.post { listener.onFileReceiveFailed(sessionId, fileId, fileName, complete) }
-                }
+                },
+                replaceUnstartedSessionsOnRetry = true
             )
             incomingTransfers = transferManager
             val startedServers = ArrayList<LocalSendServer>()

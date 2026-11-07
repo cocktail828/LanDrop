@@ -1,0 +1,11 @@
+<resources>
+    <string name="open_received_file">Open file</string>
+    <string name="no_app_to_open_file">No app is available to open this file.</string>
+    <string name="delete_received_file">Delete file</string>
+    <string name="delete_file_title">Delete this file?</string>
+    <string name="delete_file_message">Permanently delete “%1$s” and its history record?</string>
+    <string name="file_deleted">File deleted</string>
+    <string name="file_deleted_history_failed">File deleted, but its history record could not be removed.</string>
+    <string name="delete_file_failed">Could not delete the file. Its history record has been kept.</string>
+    <string name="file_access_denied">File access denied. Check the receive directory permission.</string>
+</resources>

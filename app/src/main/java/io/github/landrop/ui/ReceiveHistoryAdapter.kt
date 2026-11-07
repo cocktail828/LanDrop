@@ -1,11 +1,10 @@
 package io.github.landrop.ui
 
+import android.graphics.Color
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
@@ -15,88 +14,88 @@ import io.github.landrop.model.ReceiveHistoryEntry
 import java.util.Locale
 
 class ReceiveHistoryAdapter(
-    private val onOpen: (ReceiveHistoryEntry) -> Unit,
-    private val onDetails: (ReceiveHistoryEntry) -> Unit,
-    private val onDelete: (ReceiveHistoryEntry) -> Unit
-) : RecyclerView.Adapter<ReceiveHistoryAdapter.ViewHolder>() {
-    private val entries = mutableListOf<ReceiveHistoryEntry>()
+    private val onClick: (ReceiveHistoryEntry) -> Unit
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    private var rows: List<Row> = emptyList()
 
-    fun submitEntries(newEntries: List<ReceiveHistoryEntry>) {
-        val oldEntries = entries.toList()
+    fun submitEntries(entries: List<ReceiveHistoryEntry>) {
+        val old = rows
+        val next = listOf(false, true).flatMap { outgoing ->
+            val group = entries.filter { it.outgoing == outgoing }
+            if (group.isEmpty()) emptyList() else listOf(Row.Header(outgoing)) + group.map { Row.Entry(it) }
+        }
         val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-            override fun getOldListSize() = oldEntries.size
-            override fun getNewListSize() = newEntries.size
-            override fun areItemsTheSame(oldPosition: Int, newPosition: Int) = oldEntries[oldPosition].id == newEntries[newPosition].id
-            override fun areContentsTheSame(oldPosition: Int, newPosition: Int) = oldEntries[oldPosition] == newEntries[newPosition]
+            override fun getOldListSize() = old.size
+            override fun getNewListSize() = next.size
+            override fun areItemsTheSame(a: Int, b: Int) = old[a].key == next[b].key
+            override fun areContentsTheSame(a: Int, b: Int) = old[a] == next[b]
         })
-        entries.clear()
-        entries.addAll(newEntries)
+        rows = next
         diff.dispatchUpdatesTo(this)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val itemView = LayoutInflater.from(parent.context).inflate(R.layout.item_receive_history, parent, false)
-        ThemeColors.apply(itemView)
-        return ViewHolder(itemView)
+    override fun getItemViewType(position: Int) = if (rows[position] is Row.Header) 0 else 1
+    override fun getItemCount() = rows.size
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val layout = if (viewType == 0) R.layout.item_history_section else R.layout.item_receive_history
+        val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
+        ThemeColors.apply(view)
+        return if (viewType == 0) HeaderHolder(view) else EntryHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(entries[position], onOpen, onDetails, onDelete)
-    override fun getItemCount() = entries.size
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (val row = rows[position]) {
+            is Row.Header -> (holder.itemView as TextView).setText(
+                if (row.outgoing) R.string.history_recent_sent else R.string.history_recent_received)
+            is Row.Entry -> (holder as EntryHolder).bind(row.entry, onClick)
+        }
+    }
 
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val icon: ImageView = itemView.findViewById(R.id.history_file_icon)
-        private val name: TextView = itemView.findViewById(R.id.history_file_name)
-        private val details: TextView = itemView.findViewById(R.id.history_file_details)
-        private val more: View = itemView.findViewById(R.id.history_more_button)
+    private sealed class Row {
+        abstract val key: String
+        data class Header(val outgoing: Boolean) : Row() { override val key = "header:$outgoing" }
+        data class Entry(val entry: ReceiveHistoryEntry) : Row() { override val key = "entry:${entry.id}" }
+    }
 
-        fun bind(
-            entry: ReceiveHistoryEntry,
-            onOpen: (ReceiveHistoryEntry) -> Unit,
-            onDetails: (ReceiveHistoryEntry) -> Unit,
-            onDelete: (ReceiveHistoryEntry) -> Unit
-        ) {
-            icon.setImageResource(if (entry.outgoing) R.drawable.ic_send else R.drawable.ic_background_receive)
-            icon.imageTintList = android.content.res.ColorStateList.valueOf(TvUi.accent(itemView.context))
+    private class HeaderHolder(view: View) : RecyclerView.ViewHolder(view)
+
+    class EntryHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val icon: ImageView = view.findViewById(R.id.history_file_icon)
+        private val name: TextView = view.findViewById(R.id.history_file_name)
+        private val details: TextView = view.findViewById(R.id.history_file_details)
+        private val status: TextView = view.findViewById(R.id.history_file_status)
+
+        fun bind(entry: ReceiveHistoryEntry, onClick: (ReceiveHistoryEntry) -> Unit) {
+            val context = itemView.context
+            icon.setImageResource(when {
+                entry.isMessage -> R.drawable.ic_content_paste
+                entry.outgoing -> R.drawable.ic_send
+                else -> R.drawable.ic_description
+            })
+            icon.imageTintList = android.content.res.ColorStateList.valueOf(ThemeColors.primaryTextColor(context))
             name.text = entry.displayName
-            val peer = ReceiveHistoryText.sender(itemView.context, entry.senderAlias)
-            val time = ReceiveHistoryText.receivedAt(itemView.context, entry.receivedAt)
-            val result = itemView.context.getString(when(entry.result) {
+            val peer = ReceiveHistoryText.sender(context, entry.senderAlias)
+            val direction = context.getString(if (entry.outgoing) R.string.history_to_peer else R.string.history_from_peer, peer)
+            details.text = context.getString(R.string.history_entry_metadata, direction,
+                ReceiveHistoryText.receivedAt(context, entry.receivedAt), formatBytes(entry.size))
+            status.setText(when (entry.result) {
                 "sent" -> R.string.transfer_sent
                 "failed" -> R.string.transfer_failed
                 "cancelled" -> R.string.transfer_cancelled
-                else -> if (entry.isMessage) R.string.tv_text_received else R.string.transfer_completed
+                else -> R.string.history_received
             })
-            details.text = (if (entry.outgoing) itemView.context.getString(R.string.tv_outgoing_history, peer, time)
-                else itemView.context.getString(R.string.tv_from, peer) + " · " + time) + " · " + result
-            itemView.setOnClickListener { onOpen(entry) }
-            more.setOnClickListener { anchor ->
-                PopupMenu(anchor.context, anchor).apply {
-                    menu.add(0, MENU_OPEN, 0, if (entry.isMessage) R.string.view_message else R.string.open_file)
-                    menu.add(0, MENU_DETAILS, 1, R.string.file_details)
-                    menu.add(0, MENU_DELETE, 2, R.string.delete_history_item)
-                    setOnMenuItemClickListener { item: MenuItem ->
-                        when (item.itemId) {
-                            MENU_OPEN -> onOpen(entry)
-                            MENU_DETAILS -> onDetails(entry)
-                            MENU_DELETE -> onDelete(entry)
-                        }
-                        true
-                    }
-                }.show()
-            }
+            status.setTextColor(if (!entry.outgoing && entry.result == "saved") {
+                Color.parseColor(if (ThemeColors.isDark(context)) "#83DBB1" else "#147D50")
+            } else TvUi.muted(context))
+            itemView.setOnClickListener { onClick(entry) }
         }
 
-    }
-
-    private companion object {
-        const val MENU_OPEN = 1
-        const val MENU_DETAILS = 2
-        const val MENU_DELETE = 3
-        fun formatBytes(bytes: Long): String = when {
-            bytes < 1024L -> "$bytes B"
-            bytes < 1024L * 1024L -> "%.1f KB".format(Locale.US, bytes / 1024.0)
-            bytes < 1024L * 1024L * 1024L -> "%.1f MB".format(Locale.US, bytes / (1024.0 * 1024.0))
-            else -> "%.1f GB".format(Locale.US, bytes / (1024.0 * 1024.0 * 1024.0))
+        private fun formatBytes(bytes: Long): String = when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
+            bytes < 1024L * 1024 * 1024 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024))
+            else -> String.format(Locale.US, "%.1f GB", bytes / (1024.0 * 1024 * 1024))
         }
     }
 }

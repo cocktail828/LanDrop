@@ -50,7 +50,6 @@ import java.util.concurrent.Executors
 
 class MainActivity : LocalizedActivity(), TransferService.Listener {
     private lateinit var statusText: TextView
-    private lateinit var openTransferButton: android.widget.Button
     private lateinit var pendingSendBar: android.view.View
     private lateinit var pendingSendSummary: TextView
     private lateinit var localEndpointDeviceName: TextView
@@ -89,35 +88,32 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         setContentView(R.layout.activity_main)
         ThemeColors.apply(this)
         statusText = findViewById(R.id.discovery_status)
-        openTransferButton = findViewById(R.id.open_transfer_button)
         pendingSendBar = findViewById(R.id.pending_send_bar)
         pendingSendSummary = findViewById(R.id.pending_send_summary)
         localEndpointDeviceName = findViewById(R.id.local_endpoint_device_name)
         appliedLanguage = AppSettings(this).language()
         findViewById<android.view.View>(R.id.history_button).setOnClickListener {
-            startActivity(Intent(this, ReceiveHistoryActivity::class.java))
+            openTransferHistory()
         }
         findViewById<android.view.View>(R.id.settings_button).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
-        openTransferButton.setOnClickListener { openTransferCenter() }
-        pendingSendBar.setOnClickListener { showPendingSendSheet() }
+        findViewById<android.view.View>(R.id.pending_send_details).setOnClickListener { showPendingSendSheet() }
+        findViewById<android.view.View>(R.id.device_pending_send_bar).setOnClickListener { showPendingSendSheet() }
+        findViewById<android.view.View>(R.id.choose_receiver_button).setOnClickListener { showPage("devices") }
         findViewById<RecyclerView>(R.id.device_list).apply { layoutManager = LinearLayoutManager(this@MainActivity); adapter = deviceAdapter }
         findViewById<android.view.View>(R.id.refresh_button).setOnClickListener { transferService?.refreshDevices() }
-        findViewById<android.view.View>(R.id.change_content_button).setOnClickListener { showPage("send") }
-        findViewById<android.view.View>(R.id.select_content_button).setOnClickListener {
-            if (settings.backgroundReceiverEnabled() && settings.serverEnabled()) showPage(if (selectedFiles.isNotEmpty()) "devices" else "send")
-            else {
-                val restart = !settings.serverEnabled()
-                settings.setServerEnabled(true)
-                startTransferService()
-                if (restart) startService(Intent(this, TransferService::class.java).setAction(TransferService.ACTION_RELOAD_SETTINGS))
-                updateLocalEndpoint()
-            }
+        findViewById<android.view.View>(R.id.change_content_button).setOnClickListener { showPage("home") }
+        findViewById<android.view.View>(R.id.enable_receiver_button).setOnClickListener {
+            val restart = !settings.serverEnabled()
+            settings.setBackgroundReceiverEnabled(true)
+            settings.setServerEnabled(true)
+            startTransferService()
+            if (restart) startService(Intent(this, TransferService::class.java).setAction(TransferService.ACTION_RELOAD_SETTINGS))
+            updateLocalEndpoint()
         }
         findViewById<android.view.View>(R.id.background_button).setOnClickListener { moveTaskToBack(true) }
-        findViewById<android.view.View>(R.id.send_back_button).setOnClickListener { showPage("home") }
-        findViewById<android.view.View>(R.id.devices_back_button).setOnClickListener { showPage("send") }
+        findViewById<android.view.View>(R.id.devices_back_button).setOnClickListener { showPage("home") }
         findViewById<android.view.View>(R.id.content_action_file).setOnClickListener { chooseFile() }
         findViewById<android.view.View>(R.id.content_action_folder).setOnClickListener { chooseFolder() }
         findViewById<android.view.View>(R.id.content_action_clipboard).setOnClickListener { chooseClipboard() }
@@ -128,8 +124,8 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         requestNotificationPermission()
         settings.initializeReceiver()
         if (settings.backgroundReceiverEnabled()) startTransferService()
-        handleShareIntent(intent)
-        showPage(savedInstanceState?.getString("tv_page") ?: if (selectedFiles.isNotEmpty()) "devices" else "home")
+        if (savedInstanceState == null) handleShareIntent(intent)
+        showPage(savedInstanceState?.getString("tv_page") ?: "home")
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -196,6 +192,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
     override fun onStop() {
         incomingDialog?.dismiss()
         incomingDialog = null
+        incomingRequest = null
         transferService?.removeListener(this)
         if (bound) { unbindService(connection); bound = false }
         super.onStop()
@@ -210,9 +207,9 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
     @Suppress("DEPRECATION")
     @Deprecated("Legacy Activity back handling supports Android 5.0")
     override fun onBackPressed() {
+        if (io.github.landrop.ui.ReceivedTextPrompt.dismiss(this)) return
         when (currentPage) {
-            "devices" -> showPage("send")
-            "send" -> showPage("home")
+            "devices" -> showPage("home")
             else -> moveTaskToBack(true)
         }
     }
@@ -294,7 +291,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         if (files.isNotEmpty()) {
             statusText.text = getString(R.string.files_selected, files.size)
             refreshPendingSendBar()
-            showPage("devices")
+            showPage("home")
             contentExecutor.execute {
                 val loaded = files.map { uri -> pendingFile(uri).let { file -> relativeNames[uri]?.let { file.copy(displayName = it) } ?: file } }
                 mainHandler.post {
@@ -339,6 +336,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
     private fun refreshPendingSendBar() {
         val visible = selectedFiles.isNotEmpty()
         pendingSendBar.visibility = if (visible) android.view.View.VISIBLE else android.view.View.GONE
+        findViewById<android.view.View>(R.id.device_pending_send_bar).visibility = pendingSendBar.visibility
         if (!visible) return
         val pendingFiles = pendingSendQueue.snapshot()
         val total = pendingFiles.sumOf { it.size }
@@ -347,6 +345,8 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         } else {
             getString(R.string.pending_send_summary, selectedFiles.size)
         }
+        findViewById<TextView>(R.id.device_pending_send_summary).text = pendingSendSummary.text
+        findViewById<TextView>(R.id.pending_send_names).text = pendingFiles.joinToString("、") { it.displayName }
     }
 
     private fun removePendingFile(file: PendingSendFile) {
@@ -358,7 +358,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
             pendingSendAdapter.submitFiles(pendingSendQueue.snapshot())
             resizePendingSendList(it)
         }
-        if (selectedFiles.isEmpty()) { pendingSendSheet?.dismiss(); showPage("send") }
+        if (selectedFiles.isEmpty()) { pendingSendSheet?.dismiss(); showPage("home") }
     }
 
     private fun clearPendingFiles() {
@@ -368,6 +368,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         pendingSendQueue.clear()
         refreshPendingSendBar()
         pendingSendSheet?.dismiss()
+        showPage("home")
     }
 
     private fun showPendingSendSheet() {
@@ -415,8 +416,10 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         }
     }
 
-    private fun openTransferCenter() {
-        startActivity(Intent(this, TransferCenterActivity::class.java))
+    private fun openTransferHistory(message: String? = null) {
+        startActivity(Intent(this, TransferHistoryActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .apply { if (message != null) putExtra(TransferHistoryActivity.EXTRA_RECEIVED_TEXT, message) })
     }
 
     private fun persistReadPermissions(uris: List<Uri>) {
@@ -509,14 +512,13 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
     }
 
     private fun showPage(page: String) {
-        currentPage = page
-        findViewById<android.view.View>(R.id.receive_home).visibility = if (page == "home") android.view.View.VISIBLE else android.view.View.GONE
-        findViewById<android.view.View>(R.id.send_choices).visibility = if (page == "send") android.view.View.VISIBLE else android.view.View.GONE
-        findViewById<android.view.View>(R.id.send_devices).visibility = if (page == "devices") android.view.View.VISIBLE else android.view.View.GONE
-        val target = when (page) {
-            "send" -> R.id.content_action_file
-            "devices" -> R.id.refresh_button
-            else -> R.id.select_content_button
+        currentPage = if (page == "devices" && selectedFiles.isNotEmpty()) "devices" else "home"
+        findViewById<android.view.View>(R.id.receive_home).visibility = if (currentPage == "home") android.view.View.VISIBLE else android.view.View.GONE
+        findViewById<android.view.View>(R.id.send_devices).visibility = if (currentPage == "devices") android.view.View.VISIBLE else android.view.View.GONE
+        val target = when {
+            currentPage == "devices" -> R.id.refresh_button
+            selectedFiles.isNotEmpty() -> R.id.choose_receiver_button
+            else -> R.id.content_action_file
         }
         findViewById<android.view.View>(target).requestFocus()
     }
@@ -530,7 +532,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
             pendingSendSheet?.dismiss()
             it.send(files, device, message, selectedRelativeNames)
             showPage("home")
-            openTransferCenter()
+            openTransferHistory()
         } ?: Toast.makeText(this, R.string.service_starting, Toast.LENGTH_SHORT).show()
     }
 
@@ -548,24 +550,12 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
         updateLocalEndpoint()
     }
     override fun onDiscoveryError(message: String) { statusText.text = getString(R.string.discovery_error, message); updateLocalEndpoint() }
-    override fun onIncomingSessionPrepared(sessionId: String, request: IncomingTransferManager.PrepareUploadRequest) {
-        showActiveTransferShortcut()
-    }
-    override fun onOutgoingSessionPreparing(sessionId: String, files: List<ActiveTransferFile>) {
-        showActiveTransferShortcut()
-    }
-    override fun onOutgoingChecksumProgress(sessionId: String, current: Int, total: Int) {
-        showActiveTransferShortcut()
-    }
-    override fun onOutgoingSessionPrepared(sessionId: String, files: List<ActiveTransferFile>) {
-        showActiveTransferShortcut()
-    }
-    override fun onOutgoingSessionStarted(preparationSessionId: String, sessionId: String, files: List<ActiveTransferFile>) {
-        showActiveTransferShortcut()
-    }
-    override fun onActiveTransfersRestored(files: List<ActiveTransferFile>) {
-        if (files.isNotEmpty()) showActiveTransferShortcut()
-    }
+    override fun onIncomingSessionPrepared(sessionId: String, request: IncomingTransferManager.PrepareUploadRequest) = Unit
+    override fun onOutgoingSessionPreparing(sessionId: String, files: List<ActiveTransferFile>) = Unit
+    override fun onOutgoingChecksumProgress(sessionId: String, current: Int, total: Int) = Unit
+    override fun onOutgoingSessionPrepared(sessionId: String, files: List<ActiveTransferFile>) = Unit
+    override fun onOutgoingSessionStarted(preparationSessionId: String, sessionId: String, files: List<ActiveTransferFile>) = Unit
+    override fun onActiveTransfersRestored(files: List<ActiveTransferFile>) = Unit
     override fun onUploadStatus(message: String) = Unit
     override fun onPinRequired(device: RemoteDevice, attempt: Int, reply: (String?) -> Unit) {
         if (isFinishing || isDestroyed) {
@@ -602,46 +592,39 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
             respond(pin)
         }
     }
-    override fun onTransferStateRestored(title: String, percent: Int) {
-        showActiveTransferShortcut()
-    }
-    override fun onUploadProgress(fileName: String, fileIndex: Int, fileCount: Int, sent: Long, total: Long, totalSent: Long, totalBytes: Long) {
-        showActiveTransferShortcut()
-    }
-    override fun onUploadCompleted(names: List<String>) { clearPendingFiles(); showActiveTransferShortcut() }
-    override fun onUploadError(message: String) = showActiveTransferShortcut()
-    override fun onTransferFinished(message: String) = showActiveTransferShortcut()
+    override fun onTransferStateRestored(title: String, percent: Int) = Unit
+    override fun onUploadProgress(fileName: String, fileIndex: Int, fileCount: Int, sent: Long, total: Long, totalSent: Long, totalBytes: Long) = Unit
+    override fun onUploadCompleted(names: List<String>) { clearPendingFiles() }
+    override fun onUploadError(message: String) = Unit
+    override fun onTransferFinished(message: String) = Unit
 
     private var incomingDialog: AlertDialog? = null
+    private var incomingRequest: IncomingTransferManager.PrepareUploadRequest? = null
 
     override fun onIncomingTransferRequest(request: IncomingTransferManager.PrepareUploadRequest, decide: (IncomingReceiveOptions?) -> Unit) {
         if (isFinishing || isDestroyed) { decide(null); return }
         incomingDialog?.dismiss()
-        incomingDialog = io.github.landrop.ui.IncomingDialogs.show(this, request, decide, ::openTransferCenter)
+        incomingRequest = request
+        incomingDialog = io.github.landrop.ui.IncomingDialogs.show(this, request, decide,
+            onFilesAccepted = { openTransferHistory() }, onTextAccepted = { openTransferHistory(it) })
     }
 
-    override fun onIncomingRequestResolved() { incomingDialog?.dismiss(); incomingDialog = null }
+    override fun onIncomingRequestResolved(request: IncomingTransferManager.PrepareUploadRequest) {
+        if (incomingRequest !== request) return
+        incomingDialog?.dismiss()
+        incomingDialog = null
+        incomingRequest = null
+    }
 
-    override fun onFileReceiveProgress(file: ActiveTransferFile) {
-        showActiveTransferShortcut()
-    }
-    override fun onFileSendProgress(file: ActiveTransferFile) {
-        showActiveTransferShortcut()
-    }
-    override fun onFileReceiveCancelled(file: ActiveTransferFile, sessionComplete: Boolean) {
-        if (sessionComplete) showActiveTransferShortcut()
-    }
+    override fun onFileReceiveProgress(file: ActiveTransferFile) = Unit
+    override fun onFileSendProgress(file: ActiveTransferFile) = Unit
+    override fun onFileReceiveCancelled(file: ActiveTransferFile, sessionComplete: Boolean) = Unit
     override fun onFileReceived(sessionId: String, fileId: String, file: ReceivedFile, sessionComplete: Boolean) {
         val message = getString(R.string.download_completed, file.displayName)
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-        if (sessionComplete) showActiveTransferShortcut()
     }
-    override fun onIncomingSessionCompleted(sessionId: String) { showActiveTransferShortcut() }
-    override fun onOutgoingSessionCompleted(sessionId: String) { showActiveTransferShortcut() }
-
-    private fun showActiveTransferShortcut() {
-        openTransferButton.visibility = android.view.View.VISIBLE
-    }
+    override fun onIncomingSessionCompleted(sessionId: String) = Unit
+    override fun onOutgoingSessionCompleted(sessionId: String) = Unit
 
     private fun updateLocalEndpoint() {
         localEndpointDeviceName.text = settings.deviceName()
@@ -655,7 +638,7 @@ class MainActivity : LocalizedActivity(), TransferService.Listener {
             else -> R.string.tv_ready
         })
         findViewById<TextView>(R.id.receiver_description).setText(if (enabled) R.string.tv_receiver_description else R.string.tv_paused_description)
-        findViewById<android.widget.Button>(R.id.select_content_button).setText(if (enabled) R.string.tv_select_content else R.string.tv_enable)
+        findViewById<android.view.View>(R.id.enable_receiver_button).visibility = if (enabled) android.view.View.GONE else android.view.View.VISIBLE
         findViewById<TextView>(R.id.receiver_save_path).text = settings.receiveDirectoryName() ?: getString(R.string.tv_default_directory)
         findViewById<TextView>(R.id.receiver_footer).setText(if (enabled) R.string.tv_background_enabled else R.string.tv_paused)
     }

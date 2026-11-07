@@ -26,10 +26,10 @@ These four photos were taken with a phone and show LanDrop running on a TV.
 ## Use
 
 - Open the app to see the device name, receiving status, and save location. Receiving runs in a foreground service; background receiving and start-on-boot are enabled by default.
-- Accept or reject incoming files and text. Text is copied only on request; received links and APKs do not open automatically.
-- To send, choose **Select content → File / Folder / Clipboard → Nearby device**. Discovery supplies the device list.
-- View progress and review send/receive records. Clearing records does not delete files.
-- Cancellation requires confirmation. **Stop all** beside the Transfer center title stops all current transfers; **Stop transfer** on a transfer affects only that transfer. Incoming files also have a **Stop file** action.
+- Accept or reject incoming files and text. Text is copied only on request; received links and APKs do not open automatically. Accepted text shows an inline Copy prompt in Transfers, without a share sheet.
+- To send, choose **File / Folder / Clipboard** on Home, review the selected content, then choose **Select receiver**. Discovery supplies the device list.
+- Current transfers and history share one **Transfers** page, opened automatically after accepting files or text, or starting a send. New incoming transfers appear first; received history is ordered newest first, followed by sent records. Select a row for its actions. Received files offer **Open file / Delete file**, with confirmation before deletion. Clearing history only removes records.
+- Cancellation requires confirmation. **Stop all** beside the Transfers title stops all current transfers. Select an active transfer heading to stop that transfer, or an incoming file row to stop only that file. An outgoing file row stops its sending session.
 - Change the device name, language, save directory, background receiving, boot behavior, and TV overlay confirmation in Settings. The interface supports light/dark system themes and D-pad focus.
 
 Files save to `Download/localsend/` by default. A system-authorized directory can be selected instead. Android 5.0 or later is required; the UI is designed for TV. Phones and computers running LocalSend are intended peers.

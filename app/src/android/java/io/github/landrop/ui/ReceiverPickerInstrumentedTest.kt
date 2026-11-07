@@ -6,12 +6,16 @@ import android.widget.TextView
 import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
-import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
+import androidx.test.espresso.matcher.ViewMatchers.Visibility
+import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.landrop.MainActivity
 import io.github.landrop.R
@@ -24,11 +28,15 @@ class ReceiverPickerInstrumentedTest {
     @Test
     fun sendActionOpensDiscoveryListAndRefreshDoesNotAskForAnAddress() {
         withReceiverPicker {
-            onView(withText(R.string.choose_receiver)).check(matches(isDisplayed()))
             onView(withId(R.id.send_devices)).check(matches(isDisplayed()))
             onView(withId(R.id.refresh_button)).perform(click())
-            onView(withText(R.string.choose_receiver)).check(matches(isDisplayed()))
+            onView(withId(R.id.send_devices)).check(matches(isDisplayed()))
             onView(withId(R.id.devices_back_button)).perform(click())
+            onView(withId(R.id.receive_home)).check(matches(isDisplayed()))
+            onView(withId(R.id.pending_send_bar)).check(matches(isDisplayed()))
+            onView(withId(R.id.choose_receiver_button)).perform(click())
+            pressBack()
+            onView(withId(R.id.receive_home)).check(matches(isDisplayed()))
         }
     }
 
@@ -56,7 +64,32 @@ class ReceiverPickerInstrumentedTest {
         }
     }
 
+    @Test
+    fun selectionSurvivesRecreationAndClearingDoesNotRestoreSharedContent() {
+        withSelectedContent { scenario ->
+            onView(withId(R.id.receive_home)).check(matches(isDisplayed()))
+            onView(withId(R.id.pending_send_bar)).check(matches(isDisplayed()))
+            scenario.recreate()
+            onView(withId(R.id.pending_send_bar)).check(matches(isDisplayed()))
+            onView(withId(R.id.pending_send_details)).perform(scrollTo(), click())
+            onView(withId(R.id.pending_send_clear)).inRoot(isDialog()).perform(click())
+            onView(withId(R.id.pending_send_bar)).check(matches(withEffectiveVisibility(Visibility.GONE)))
+            scenario.recreate()
+            onView(withId(R.id.pending_send_bar)).check(matches(withEffectiveVisibility(Visibility.GONE)))
+            onView(withId(R.id.content_action_file)).check(matches(isDisplayed()))
+        }
+    }
+
     private fun withReceiverPicker(block: (ActivityScenario<MainActivity>) -> Unit) {
+        withSelectedContent { scenario ->
+            onView(withId(R.id.receive_home)).check(matches(isDisplayed()))
+            onView(withId(R.id.pending_send_bar)).check(matches(isDisplayed()))
+            onView(withId(R.id.choose_receiver_button)).perform(click())
+            block(scenario)
+        }
+    }
+
+    private fun withSelectedContent(block: (ActivityScenario<MainActivity>) -> Unit) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File.createTempFile("receiver-picker-", ".txt", context.cacheDir)
         try {

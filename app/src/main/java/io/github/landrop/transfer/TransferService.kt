@@ -21,7 +21,9 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import io.github.landrop.MainActivity
 import io.github.landrop.R
 import io.github.landrop.discovery.DiscoveryListener
@@ -43,7 +45,8 @@ class TransferService : Service(), DiscoveryListener {
         fun onDevicesChanged(devices: List<RemoteDevice>)
         fun onDiscoveryError(message: String)
         fun onIncomingTransferRequest(request: IncomingTransferManager.PrepareUploadRequest, decide: (IncomingReceiveOptions?) -> Unit)
-        fun onIncomingRequestResolved() {}
+        fun onIncomingRequestResolved(request: IncomingTransferManager.PrepareUploadRequest) {}
+        fun onHistoryChanged() {}
         fun onIncomingSessionPrepared(sessionId: String, request: IncomingTransferManager.PrepareUploadRequest)
         fun onOutgoingSessionPreparing(sessionId: String, files: List<ActiveTransferFile>)
         fun onOutgoingChecksumProgress(sessionId: String, current: Int, total: Int)
@@ -134,6 +137,20 @@ class TransferService : Service(), DiscoveryListener {
         }
     }
 
+    private val fileDeletedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val uri = intent?.getStringExtra(ReceivedFileAccess.EXTRA_URI) ?: return
+            val updated = synchronized(incomingFiles) {
+                incomingFiles.values.flatMap { files ->
+                    files.values.filter { it.receivedFile?.uri?.toString() == uri }.map { file ->
+                        file.copy(receivedFile = null, fileDeleted = true).also { files[file.fileId] = it }
+                    }
+                }
+            }
+            updated.forEach { file -> notifyListeners { it.onFileReceiveProgress(file) } }
+        }
+    }
+
     private fun scheduleNetworkRestart(delay: Long) {
         mainHandler.removeCallbacks(networkRestart)
         mainHandler.postDelayed(networkRestart, delay)
@@ -149,6 +166,8 @@ class TransferService : Service(), DiscoveryListener {
         receiveHistory = ReceiveHistoryStore(this)
         @Suppress("DEPRECATION", "UnspecifiedRegisterReceiverFlag")
         registerReceiver(connectivityReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        ContextCompat.registerReceiver(this, fileDeletedReceiver,
+            IntentFilter(ReceivedFileAccess.ACTION_FILE_DELETED), ContextCompat.RECEIVER_NOT_EXPORTED)
         restartNetwork()
         if (!settings.backgroundReceiverEnabled()) removeNotificationsAndStopForeground()
     }
@@ -189,6 +208,8 @@ class TransferService : Service(), DiscoveryListener {
     fun addListener(listener: Listener) {
         synchronized(listenerLock) { listeners += listener }
         mainHandler.post {
+            if (serviceDestroyed || synchronized(listenerLock) { listener !in listeners }) return@post
+            expireIncomingConfirmation()
             listener.onDevicesChanged(currentDevices)
             if (hasActiveTransfer) listener.onTransferStateRestored(activeNotificationTitle ?: text(R.string.notification_service_title), activeNotificationProgress)
             else lastTransferMessage?.let(listener::onTransferFinished)
@@ -222,7 +243,10 @@ class TransferService : Service(), DiscoveryListener {
     fun recordReceivedMessage(message: String, senderAlias: String?) {
         if (!settings.saveReceiveHistory()) return
         networkExecutor.execute {
-            if (!serviceDestroyed) receiveHistory.addMessage(message, senderAlias)
+            if (!serviceDestroyed) {
+                receiveHistory.addMessage(message, senderAlias)
+                notifyListeners { it.onHistoryChanged() }
+            }
         }
     }
 
@@ -246,6 +270,7 @@ class TransferService : Service(), DiscoveryListener {
     fun isBusy(): Boolean = hasActiveTransfer || pendingIncoming != null || cancellationInProgress.get()
 
     fun send(uris: List<Uri>, device: RemoteDevice, messageText: String? = null, relativeNames: Map<Uri, String> = emptyMap()) {
+        expireIncomingConfirmation()
         if (isBusy()) {
             notifyListeners { it.onUploadError(text(R.string.receiver_busy)) }
             return
@@ -284,7 +309,7 @@ class TransferService : Service(), DiscoveryListener {
                 files.forEach { file ->
                     queue[file.id] = ActiveTransferFile(
                         sessionId, file.id, file.fileName, 0L, file.size,
-                        ActiveTransferFile.Status.WAITING, ActiveTransferFile.Direction.OUTGOING
+                        ActiveTransferFile.Status.WAITING, ActiveTransferFile.Direction.OUTGOING, peerAlias = device.alias
                     )
                 }
                 synchronized(outgoingFiles) {
@@ -306,7 +331,7 @@ class TransferService : Service(), DiscoveryListener {
                 files.forEach { file ->
                     queue[file.id] = ActiveTransferFile(
                         sessionId, file.id, file.fileName, 0L, file.size,
-                        ActiveTransferFile.Status.WAITING, ActiveTransferFile.Direction.OUTGOING
+                        ActiveTransferFile.Status.WAITING, ActiveTransferFile.Direction.OUTGOING, peerAlias = device.alias
                     )
                 }
                 synchronized(outgoingFiles) {
@@ -459,8 +484,13 @@ class TransferService : Service(), DiscoveryListener {
         decide: (IncomingReceiveOptions?) -> Unit
     ) {
         if (serviceDestroyed || !settings.backgroundReceiverEnabled()) { decide(null); return }
+        expireIncomingConfirmation()
         // Keep one decision owner regardless of which UI is currently visible.
-        if (isBusy()) { decide(null); return }
+        if (isBusy()) {
+            Log.i(TAG, "Incoming request rejected: active=$hasActiveTransfer, pending=${pendingIncoming != null}, cancelling=${cancellationInProgress.get()}")
+            decide(null)
+            return
+        }
         val pending = PendingIncoming(request, decide)
         pendingIncoming = pending
         mainHandler.postDelayed({ resolveIncoming(pending.id, false) }, IncomingTransferManager.DECISION_TIMEOUT_SECONDS * 1000)
@@ -471,6 +501,7 @@ class TransferService : Service(), DiscoveryListener {
     }
 
     private fun showPendingIncoming(pending: PendingIncoming) {
+        expireIncomingConfirmation()
         if (pendingIncoming?.id != pending.id) return
         showIncomingRequestNotification(pending.request)
         if (settings.overlayConfirmation()) incomingOverlay.show(pending.request) { accepted ->
@@ -484,7 +515,8 @@ class TransferService : Service(), DiscoveryListener {
         beginScreenAwakeSession(sessionId)
         val files = LinkedHashMap<String, ActiveTransferFile>()
         request.files.forEach { (fileId, file) ->
-            files[fileId] = ActiveTransferFile(sessionId, fileId, file.fileName, 0L, file.size, ActiveTransferFile.Status.WAITING)
+            files[fileId] = ActiveTransferFile(sessionId, fileId, file.fileName, 0L, file.size, ActiveTransferFile.Status.WAITING,
+                peerAlias = request.info.alias)
         }
         synchronized(incomingFiles) {
             incomingFiles[sessionId] = files
@@ -500,7 +532,8 @@ class TransferService : Service(), DiscoveryListener {
     override fun onFileReceiveProgress(sessionId: String, fileId: String, fileName: String, received: Long, total: Long) {
         if (cancellationRequested) return
         lastIncomingActivityAt = SystemClock.elapsedRealtime()
-        val state = ActiveTransferFile(sessionId, fileId, fileName, received, total, ActiveTransferFile.Status.TRANSFERRING)
+        val state = ActiveTransferFile(sessionId, fileId, fileName, received, total, ActiveTransferFile.Status.TRANSFERRING,
+            peerAlias = incomingSenders[sessionId])
         synchronized(incomingFiles) { incomingFiles[sessionId]?.set(fileId, state) }
         hasActiveTransfer = true
         // Multiple files may upload concurrently. Keep the notification title
@@ -535,7 +568,10 @@ class TransferService : Service(), DiscoveryListener {
         if (settings.saveReceiveHistory()) {
             val peer = incomingSenders[sessionId]
             networkExecutor.execute {
-                if (!serviceDestroyed) receiveHistory.addTransfer(state.fileName, peer, state.totalBytes, false, if (status == ActiveTransferFile.Status.FAILED) "failed" else "cancelled")
+                if (!serviceDestroyed) {
+                    receiveHistory.addTransfer(state.fileName, peer, state.totalBytes, false, if (status == ActiveTransferFile.Status.FAILED) "failed" else "cancelled")
+                    notifyListeners { it.onHistoryChanged() }
+                }
             }
         }
         lastTransferMessage = if (status == ActiveTransferFile.Status.FAILED) text(R.string.transfer_failed)
@@ -554,11 +590,15 @@ class TransferService : Service(), DiscoveryListener {
     override fun onFileReceived(sessionId: String, fileId: String, file: ReceivedFile, sessionComplete: Boolean) {
         if (cancellationRequested) return
         synchronized(incomingFiles) {
-            incomingFiles[sessionId]?.get(fileId)?.let { incomingFiles[sessionId]?.set(fileId, it.copy(receivedBytes = it.totalBytes, status = ActiveTransferFile.Status.COMPLETED)) }
+            incomingFiles[sessionId]?.get(fileId)?.let {
+                incomingFiles[sessionId]?.set(fileId, it.copy(receivedBytes = it.totalBytes,
+                    status = ActiveTransferFile.Status.COMPLETED, receivedFile = file))
+            }
             if (settings.saveReceiveHistory()) receiveHistory.add(file, incomingSenders[sessionId])
         }
         if (!lastTransferWasError) lastTransferMessage = text(R.string.download_completed, file.displayName)
         notifyListeners { it.onFileReceived(sessionId, fileId, file, sessionComplete) }
+        if (settings.saveReceiveHistory()) notifyListeners { it.onHistoryChanged() }
         if (sessionComplete) {
             endScreenAwakeSession(sessionId)
             finishIncomingSession(sessionId, ActiveTransferFile.Status.COMPLETED)
@@ -572,7 +612,8 @@ class TransferService : Service(), DiscoveryListener {
                     .setContentTitle(text(if (lastTransferWasError) R.string.transfer_failed else R.string.receiver_saved))
                     .setContentText("${file.displayName.take(160)} · $location")
                     .setContentIntent(PendingIntent.getActivity(this, 5,
-                        Intent(this, io.github.landrop.ReceiveHistoryActivity::class.java), pendingIntentFlags()))
+                        Intent(this, io.github.landrop.TransferHistoryActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP), pendingIntentFlags()))
                     .setAutoCancel(true)
                     .build())
         }
@@ -594,7 +635,10 @@ class TransferService : Service(), DiscoveryListener {
             else -> "failed"
         }
         networkExecutor.execute {
-            if (!serviceDestroyed) receiveHistory.addTransfer(name, peer, file.totalBytes, true, result, message != null)
+            if (!serviceDestroyed) {
+                receiveHistory.addTransfer(name, peer, file.totalBytes, true, result, message != null)
+                notifyListeners { it.onHistoryChanged() }
+            }
         }
     }
 
@@ -626,8 +670,11 @@ class TransferService : Service(), DiscoveryListener {
             if (settings.saveReceiveHistory() && status != ActiveTransferFile.Status.COMPLETED) {
                 val peer = incomingSenders[sessionId]
                 networkExecutor.execute {
-                    if (!serviceDestroyed) receiveHistory.addTransfer(state.fileName, peer, state.totalBytes, false,
-                        if (status == ActiveTransferFile.Status.CANCELLED) "cancelled" else "failed")
+                    if (!serviceDestroyed) {
+                        receiveHistory.addTransfer(state.fileName, peer, state.totalBytes, false,
+                            if (status == ActiveTransferFile.Status.CANCELLED) "cancelled" else "failed")
+                        notifyListeners { it.onHistoryChanged() }
+                    }
                 }
             }
             notifyListeners { it.onFileReceiveProgress(state) }
@@ -718,6 +765,12 @@ class TransferService : Service(), DiscoveryListener {
 
     private fun resolveIncoming(accepted: Boolean) = resolveIncoming(pendingIncoming?.id, accepted)
 
+    private fun expireIncomingConfirmation() {
+        val pending = pendingIncoming ?: return
+        // Handler delays use uptime, while the deadline includes time spent asleep.
+        if (SystemClock.elapsedRealtime() >= pending.expiresAt) resolveIncoming(pending.id, false)
+    }
+
     private fun resolveIncoming(id: String?, accepted: Boolean) {
         val pending = pendingIncoming ?: return
         if (id != pending.id) return
@@ -735,7 +788,7 @@ class TransferService : Service(), DiscoveryListener {
         if (applied && options != null && now < pending.expiresAt) {
             pending.request.messageText()?.let { recordReceivedMessage(it, pending.request.info.alias) }
         }
-        notifyListeners { it.onIncomingRequestResolved() }
+        notifyListeners { it.onIncomingRequestResolved(pending.request) }
     }
 
     private fun showIncomingRequestNotification(request: IncomingTransferManager.PrepareUploadRequest) {
@@ -769,6 +822,7 @@ class TransferService : Service(), DiscoveryListener {
         serviceDestroyed = true
         mainHandler.removeCallbacksAndMessages(null)
         unregisterReceiver(connectivityReceiver)
+        unregisterReceiver(fileDeletedReceiver)
         TransferServiceState.markRunning(false, this)
         resolveIncoming(false)
         endAllScreenAwakeSessions()
@@ -980,6 +1034,7 @@ class TransferService : Service(), DiscoveryListener {
     private fun pendingIntentFlags(): Int = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 
     companion object {
+        private const val TAG = "TransferService"
         const val ACTION_CANCEL = "io.github.landrop.CANCEL_TRANSFER"
         const val ACTION_ANNOUNCE_IDENTITY = "io.github.landrop.ANNOUNCE_IDENTITY"
         const val ACTION_RELOAD_SETTINGS = "io.github.landrop.RELOAD_SETTINGS"

@@ -2,9 +2,6 @@ package io.github.landrop.ui
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.ScrollView
 import android.widget.TextView
 import io.github.landrop.R
@@ -15,7 +12,8 @@ import io.github.landrop.transfer.IncomingTransferManager
 /** The foreground receiver and transfer screen use the same explicit accept/reject flow. */
 object IncomingDialogs {
     fun show(activity: Activity, request: IncomingTransferManager.PrepareUploadRequest,
-             decide: (IncomingReceiveOptions?) -> Unit, onFilesAccepted: () -> Unit): AlertDialog {
+             decide: (IncomingReceiveOptions?) -> Unit, onFilesAccepted: () -> Unit,
+             onTextAccepted: ((String) -> Unit)? = null): AlertDialog {
         val message = request.messageText()
         val settings = AppSettings(activity)
         val text = TextView(activity).apply {
@@ -38,7 +36,9 @@ object IncomingDialogs {
             .setNegativeButton(R.string.incoming_request_reject) { _, _ -> decide(null) }
             .setPositiveButton(R.string.incoming_request_accept) { _, _ ->
                 decide(IncomingReceiveOptions(settings.receiveDirectoryUri()))
-                if (message == null) onFilesAccepted() else showText(activity, message)
+                if (message == null) onFilesAccepted()
+                else if (onTextAccepted != null) onTextAccepted(message)
+                else ReceivedTextPrompt.show(activity, message)
             }
             .setOnCancelListener { decide(null) }.create()
         dialog.show()
@@ -46,17 +46,6 @@ object IncomingDialogs {
         ThemeColors.apply(dialog)
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).requestFocus()
         return dialog
-    }
-
-    private fun showText(activity: Activity, message: String) {
-        if (activity.isFinishing || activity.isDestroyed) return
-        val dialog = AlertDialog.Builder(activity).setTitle(R.string.tv_text_received).setMessage(message)
-            .setNegativeButton(R.string.close, null)
-            .setPositiveButton(R.string.tv_copy) { _, _ ->
-                (activity.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)
-                    ?.setPrimaryClip(ClipData.newPlainText("LanDrop", message))
-            }.show()
-        ThemeColors.apply(dialog)
     }
 
     private fun formatBytes(bytes: Long): String = when {

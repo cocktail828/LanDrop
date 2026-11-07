@@ -69,8 +69,6 @@
     <string name="pending_send_summary">队列中有 %1$d 个文件</string>
     <string name="pending_send_summary_with_size">队列中有 %1$d 个文件 · %2$s</string>
     <string name="clear_pending_files">清空</string>
-    <string name="transfer_center">传输中心</string>
-    <string name="transfer_center_empty">当前没有活动传输</string>
     <string name="transfer_session_sending">发送会话</string>
     <string name="transfer_checksum_progress">正在计算校验和（%1$d/%2$d）</string>
     <string name="transfer_session_receiving">接收会话</string>

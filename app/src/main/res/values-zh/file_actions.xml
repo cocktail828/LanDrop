@@ -1,0 +1,11 @@
+<resources>
+    <string name="open_received_file">打开文件</string>
+    <string name="no_app_to_open_file">未找到可打开此文件的应用。</string>
+    <string name="delete_received_file">删除文件</string>
+    <string name="delete_file_title">删除此文件？</string>
+    <string name="delete_file_message">永久删除“%1$s”及其历史记录？</string>
+    <string name="file_deleted">文件已删除</string>
+    <string name="file_deleted_history_failed">文件已删除，但无法清理对应历史记录。</string>
+    <string name="delete_file_failed">无法删除文件，已保留历史记录。</string>
+    <string name="file_access_denied">无法访问文件，请检查接收目录的访问授权。</string>
+</resources>

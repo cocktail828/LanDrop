@@ -17,7 +17,10 @@ abstract class LocalizedActivity : Activity() {
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
         findViewById<View>(R.id.history_button)?.setOnClickListener {
-            if (this !is ReceiveHistoryActivity) startActivity(Intent(this, ReceiveHistoryActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            if (this is TransferHistoryActivity) {
+                findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.transfer_history_list).scrollToPosition(0)
+            } else startActivity(Intent(this, TransferHistoryActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         }
         findViewById<View>(R.id.settings_button)?.setOnClickListener {
             if (this !is SettingsActivity) startActivity(Intent(this, SettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))

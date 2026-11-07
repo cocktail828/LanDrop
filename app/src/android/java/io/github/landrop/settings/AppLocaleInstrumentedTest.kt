@@ -45,7 +45,7 @@ class AppLocaleInstrumentedTest {
         assertEquals("Cancel", localized.getString(R.string.cancel))
         assertEquals("OK", localized.getString(R.string.ok))
         assertEquals("Settings", localized.getString(R.string.settings))
-        assertEquals("Select content to send", localized.getString(R.string.tv_select_content))
+        assertEquals("Send content", localized.getString(R.string.tv_send_content))
         assertEquals("File transfers", localized.getString(R.string.notification_channel_transfer))
         assertEquals("1 device found", localized.resources.getQuantityString(R.plurals.device_count, 1, 1))
         assertEquals("2 devices found", localized.resources.getQuantityString(R.plurals.device_count, 2, 2))
@@ -55,7 +55,7 @@ class AppLocaleInstrumentedTest {
         assertEquals("取消", localized.getString(R.string.cancel))
         assertEquals("确定", localized.getString(R.string.ok))
         assertEquals("设置", localized.getString(R.string.settings))
-        assertEquals("选择内容发送", localized.getString(R.string.tv_select_content))
+        assertEquals("发送内容", localized.getString(R.string.tv_send_content))
         assertEquals("文件传输", localized.getString(R.string.notification_channel_transfer))
         assertEquals("发现 2 台设备", localized.resources.getQuantityString(R.plurals.device_count, 2, 2))
     }

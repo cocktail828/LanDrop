@@ -60,11 +60,7 @@
             </intent-filter>
         </service>
         <activity android:screenOrientation="landscape"
-            android:name=".ReceiveHistoryActivity"
-            android:exported="false"
-            android:theme="@style/Theme.LanDrop" />
-        <activity android:screenOrientation="landscape"
-            android:name=".TransferCenterActivity"
+            android:name=".TransferHistoryActivity"
             android:exported="false"
             android:theme="@style/Theme.LanDrop" />
         <activity android:screenOrientation="landscape"

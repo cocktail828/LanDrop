@@ -118,6 +118,12 @@ class ReceiveHistoryStore(context: Context) : SQLiteOpenHelper(context.applicati
         writableDatabase.delete(TABLE_NAME, "$COLUMN_ID = ?", arrayOf(id.toString()))
     }
 
+    fun deleteFileRecords(uri: Uri) {
+        writableDatabase.delete(TABLE_NAME,
+            "$COLUMN_URI = ? AND $COLUMN_OUTGOING = 0 AND $COLUMN_IS_MESSAGE = 0",
+            arrayOf(uri.toString()))
+    }
+
     fun clear() {
         writableDatabase.delete(TABLE_NAME, null, null)
     }

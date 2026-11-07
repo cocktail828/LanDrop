@@ -1,0 +1,13 @@
+<resources>
+    <string name="history_recent_received">最近接收</string>
+    <string name="history_recent_sent">最近发送</string>
+    <string name="history_receiving">正在接收</string>
+    <string name="history_sending">正在发送</string>
+    <string name="history_received">已接收</string>
+    <string name="history_waiting">等待中</string>
+    <string name="history_entry_metadata">%1$s · %2$s · %3$s</string>
+    <string name="history_from_peer">来自 %1$s</string>
+    <string name="history_to_peer">发送至 %1$s</string>
+    <string name="history_progress_speed">%1$s · %2$s/s</string>
+    <string name="copy_received_text">复制</string>
+</resources>
